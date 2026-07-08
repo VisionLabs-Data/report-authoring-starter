@@ -1,6 +1,6 @@
 # Agency Report Authoring — Project Context
 
-This repo authors **fully custom reports** for a Mythic OS client portal. Reports are
+This repo authors **fully custom reports** for a Reporting Suite client portal. Reports are
 freehand HTML/CSS/JS you write here (any layout, any interaction), rendered by the
 platform's report service on your agency's own report host, and embedded in each
 client's portal. The portal's AI sidebar automatically knows every report's queries,

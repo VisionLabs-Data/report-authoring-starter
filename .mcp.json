@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "mythic": {
+    "reporting-suite": {
       "type": "http",
-      "url": "${MYTHIC_MCP_URL}",
+      "url": "${REPORTING_SUITE_MCP_URL}",
       "headers": {
-        "Authorization": "Bearer ${MYTHIC_API_KEY}"
+        "Authorization": "Bearer ${REPORTING_SUITE_API_KEY}"
       }
     }
   }

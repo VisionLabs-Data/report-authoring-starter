@@ -2,7 +2,7 @@
 name: authoring-workflow
 description: >-
   The end-to-end loop for authoring a client report in this repo and shipping it to the
-  Mythic portal — plan, explore the client's BigQuery schema over MCP, author split-file
+  Reporting Suite portal — plan, explore the client's BigQuery schema over MCP, author split-file
   HTML/CSS/JS, build, sync as a draft for preview, and publish. Use this whenever the
   user wants to build, create, edit, preview, publish, or sync a report/dashboard, e.g.
   "build a report", "add a chart to the overview", "publish it", "why isn't it syncing".
@@ -42,7 +42,8 @@ Load the **report-builder** skill for the full contract. In short:
 - `clients/{slug}/reports/{id}.report.json` — `id` (== filename, kebab-case), `title`,
   `description` (the AI sidebar reads this — write it well), `data_mode: "live"`,
   `interactivity: "interactive"`, `source_tables`, `queries{}`, `filters[]`,
-  `portal: { sync: true, category }`.
+  `portal: { sync: true, status, category }` (`status`: `"published"` default, or
+  `"draft"` to sync-but-hide while in progress — see report-builder for details).
 - `clients/{slug}/reports/{id}/` — `template.html` (body only; the platform provides
   the page shell, base CSS, and Chart.js), `styles.css`, `01-*.js` (numbered order).
 - Data binding: declarative `.vl-metric` / `.vl-chart` / `.vl-table-wrapper` elements,
@@ -68,4 +69,4 @@ npm run sync -- {client}             # publish → live in the client's portal
 | `in-sync` | No changes since last sync. |
 | `conflict` | The report was edited in the portal — DO NOT force; tell the user to resolve in the portal admin, then re-sync. |
 | `skip (portal.sync is not true)` | Set `portal.sync: true` in the `.report.json`. |
-| 4xx on the whole sync | Check `MYTHIC_API_KEY` scopes (reports:write) and the `portal.config.json` client binding. |
+| 4xx on the whole sync | Check `REPORTING_SUITE_API_KEY` scopes (reports:write) and the `portal.config.json` client binding. |

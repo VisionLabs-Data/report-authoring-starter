@@ -13,7 +13,7 @@
  *   npm run sync -- acme-co            # one client
  *   npm run sync -- acme-co --draft
  *
- * Requires .env: MYTHIC_API_KEY (agency API key with reports:read + reports:write).
+ * Requires .env: REPORTING_SUITE_API_KEY (agency API key with reports:read + reports:write).
  * Client mapping + portal URL live in portal.config.json.
  */
 
@@ -39,7 +39,7 @@ interface ReportMeta {
   source_tables?: string[];
   html_source?: string;
   queries?: Record<string, { sql: string; cache_ttl?: string }>;
-  portal?: { sync?: boolean; category?: string } | null;
+  portal?: { sync?: boolean; category?: string; status?: "draft" | "published" } | null;
   [k: string]: unknown;
 }
 
@@ -53,9 +53,9 @@ async function main() {
   const clientFilter = args.find((a) => !a.startsWith("--"));
 
   const portalCfg = JSON.parse(await readFile(join(ROOT, "portal.config.json"), "utf-8")) as PortalConfig;
-  const apiKey = process.env[portalCfg.apiKeyEnv || "MYTHIC_API_KEY"];
+  const apiKey = process.env[portalCfg.apiKeyEnv || "REPORTING_SUITE_API_KEY"];
   if (!apiKey) {
-    console.error(`Missing ${portalCfg.apiKeyEnv || "MYTHIC_API_KEY"} — set it in .env (agency API key with reports:write).`);
+    console.error(`Missing ${portalCfg.apiKeyEnv || "REPORTING_SUITE_API_KEY"} — set it in .env (agency API key with reports:write).`);
     process.exit(1);
   }
   const base = portalCfg.portalApiUrl.replace(/\/+$/, "");
@@ -106,7 +106,11 @@ async function main() {
         name: meta.title?.trim() || meta.id,
         description: meta.description ?? null,
         category: meta.portal?.category ?? null,
-        status: draft ? "draft" : "published",
+        // Per-report publish state: the report's own `portal.status` governs
+        // (default "published"), unless the run forces drafts globally (--draft,
+        // e.g. CI on a PR). So a report you're not ready to ship sets
+        // `portal.status: "draft"` and stays a draft even on a publish run.
+        status: draft ? "draft" : (meta.portal?.status ?? "published"),
         report_type: "other",
         bigquery_tables: meta.source_tables ?? [],
         report_meta: meta,

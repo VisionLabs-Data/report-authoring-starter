@@ -1,0 +1,55 @@
+name: Sync reports
+
+# Draft on PRs, publish on merge to main.
+#
+#  - Open/update a PR that touches clients/** → builds and syncs as DRAFTS
+#    (preview URLs in the job log; nothing becomes client-visible).
+#  - Merge to main → builds and PUBLISHES, honoring each report's
+#    portal.status (a report marked "draft" stays a draft even here).
+#
+# Setup (once, in the repo on GitHub):
+#  1. Settings → Secrets and variables → Actions → new secret
+#     REPORTING_SUITE_API_KEY = your agency key (reports:read + reports:write).
+#  2. Settings → Environments → create "production" and add required reviewers.
+#     The publish job below is pinned to it, so a merge to main WAITS for an
+#     approval before anything goes live. Remove the `environment:` line to
+#     publish automatically instead.
+
+on:
+  pull_request:
+    paths: ["clients/**", "scripts/**"]
+  push:
+    branches: [main]
+    paths: ["clients/**", "scripts/**"]
+
+jobs:
+  draft:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run sync -- --draft
+        env:
+          REPORTING_SUITE_API_KEY: ${{ secrets.REPORTING_SUITE_API_KEY }}
+
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production # approval gate — see setup note above
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run sync
+        env:
+          REPORTING_SUITE_API_KEY: ${{ secrets.REPORTING_SUITE_API_KEY }}

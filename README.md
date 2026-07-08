@@ -2,14 +2,14 @@
 
 Author fully custom, data-driven client reports with Claude Code — freehand HTML/CSS/JS,
 version-controlled in this repo, rendered on your agency's own report host, and embedded
-in each client's Mythic OS portal. The portal's AI assistant automatically understands
+in each client's Reporting Suite portal. The portal's AI assistant automatically understands
 every report you ship (its queries, tables, and description sync with it).
 
 ## Setup (once)
 
 1. **API key.** In your portal admin → API Keys, create an **agency-scoped** key with the
    **Reports** capability (read + write).
-2. **Configure.** `cp .env.example .env`, fill in `MYTHIC_API_KEY` (and the MCP URL).
+2. **Configure.** `cp .env.example .env`, fill in `REPORTING_SUITE_API_KEY` (and the MCP URL).
    In `portal.config.json`, set `portalApiUrl` and map each `clients/{slug}` folder to its
    portal client id (from the portal admin).
 3. **Install.** `npm install` (Node 22+).
@@ -61,6 +61,29 @@ Drafts update in place — iterate with edit → build → sync --draft until th
 looks right. Publishing is explicit. Portal-side edits are never overwritten (the sync
 flags a conflict instead).
 
+## Continuous sync (GitHub Actions)
+
+`.github/workflows/sync.yml` runs the same build + sync on every change under
+`clients/**`, so you can drive the whole loop from git instead of your terminal:
+
+| Event | What runs | Result |
+|-------|-----------|--------|
+| **PR** touching `clients/**` | `npm run sync -- --draft` | Everything synced as **drafts** — preview URLs in the job log, nothing client-visible. Review the report before merging. |
+| **Merge to `main`** | `npm run sync` | **Publishes**, honoring each report's `portal.status`. |
+
+Two things to set up on GitHub (once):
+
+1. **Secret** — `Settings → Secrets and variables → Actions` → add
+   `REPORTING_SUITE_API_KEY` (your agency key, `reports:read` + `reports:write`).
+2. **Approval gate** — `Settings → Environments` → create **`production`** and add
+   required reviewers. The publish job is pinned to it, so a merge to `main` **waits
+   for approval** before anything goes live. Delete the `environment:` line in the
+   workflow to publish automatically instead.
+
+Push-to-publish is convenient but easy to fire by accident, which is why publishing
+sits behind the approval gate and per-report `portal.status` (below) — a report you're
+not ready to ship never goes live just because it landed on `main`.
+
 ## What's in the box
 
 - `clients/example-client/` — a working example report to copy from
@@ -73,7 +96,14 @@ flags a conflict instead).
 ## Report anatomy (30 seconds)
 
 `clients/{slug}/reports/{id}.report.json` — metadata + **named SQL queries** (BigQuery,
-`@date_start`/`@date_end` params) + filters + `portal: { sync: true }`.
+`@date_start`/`@date_end` params) + filters + `portal: { sync, status, category }`:
+
+- `portal.sync` — `true` to include this report in `npm run sync`; anything else skips it.
+- `portal.status` — `"published"` (default) or `"draft"`. A draft report syncs but stays
+  hidden from the client (preview-only), even on a publish run / merge to `main` — set it
+  while a report is still in progress, flip to `"published"` when it's ready. The `--draft`
+  sync flag is a global override that forces every report to draft regardless.
+- `portal.category` — optional grouping label in the portal.
 
 `clients/{slug}/reports/{id}/` — your freehand source: `template.html` (body HTML),
 `styles.css`, `01-*.js`. The platform wraps it with the base design system, Chart.js,

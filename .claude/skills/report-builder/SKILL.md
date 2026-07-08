@@ -1,6 +1,6 @@
 # Report Builder Skill
 
-Build custom interactive client reports for the Mythic client portal. Use this skill whenever a report plan is ready to implement, or the user asks to build, edit, or extend a report/dashboard — wiring data bindings, adding charts, filters, pages, modals, or funnels. Reports are authored as files in this repo (`clients/{slug}/reports/`), built with `npm run build`, and synced to the portal with `npm run sync`. Run the **report-planner** skill first for new reports — it produces the blueprint this skill executes.
+Build custom interactive client reports for the Reporting Suite client portal. Use this skill whenever a report plan is ready to implement, or the user asks to build, edit, or extend a report/dashboard — wiring data bindings, adding charts, filters, pages, modals, or funnels. Reports are authored as files in this repo (`clients/{slug}/reports/`), built with `npm run build`, and synced to the portal with `npm run sync`. Run the **report-planner** skill first for new reports — it produces the blueprint this skill executes.
 
 ## Architecture
 
@@ -55,7 +55,7 @@ npm run build             # assemble split-file sources into .report.html
 npm run sync -- --draft   # push as drafts → prints a preview URL per report
 ```
 
-The sync POSTs built reports to the portal's authenticated endpoint (`POST /v1/report-authoring/sync`) using **`MYTHIC_API_KEY` from `.env`** — an agency API key with `reports:read` + `reports:write`. A draft sync returns a **preview URL** in its output — open it to verify the report renders with live data.
+The sync POSTs built reports to the portal's authenticated endpoint (`POST /v1/report-authoring/sync`) using **`REPORTING_SUITE_API_KEY` from `.env`** — an agency API key with `reports:read` + `reports:write`. A draft sync returns a **preview URL** in its output — open it to verify the report renders with live data.
 
 The iteration loop:
 
@@ -100,6 +100,7 @@ A minimal report with 1 metric row, 1 chart, and 1 table. Copy this as a startin
   },
   "portal": {
     "sync": true,
+    "status": "published",
     "category": "Analytics"
   }
 }
@@ -217,6 +218,7 @@ Create `clients/{slug}/reports/{report-id}.report.json`:
   ],
   "portal": {
     "sync": true,
+    "status": "published",
     "category": "Analytics"
   }
 }
@@ -231,6 +233,7 @@ Field reference:
 - **`queries`**: named `sql` queries. Each query is exposed to the report at `GET /api/query/{client}/{report-id}/{query_name}` on the report host — this is what the VL runtime fetches, and what any custom fetch (e.g., compare-period data) should call
 - **`filters`**: array of filter definitions (see "Date Range Filtering" below). Only rendered when `interactivity: "interactive"`
 - **`portal.sync`**: must be `true` or the sync skips the report entirely
+- **`portal.status`**: `"published"` (default) or `"draft"`. A draft syncs but stays hidden from the client (preview-only), even on a publish run / merge to `main` — use it while a report is in progress. The `--draft` sync flag globally overrides this.
 - **`portal.category`**: portal category grouping (e.g., "Analytics", "Performance", "Attribution", "Funnels")
 
 ### 5. Create the Report HTML
@@ -672,7 +675,7 @@ No changes needed to report HTML — existing `VL.onData()` callbacks re-fire wi
 | Report definition | `clients/{slug}/reports/{id}.report.json` |
 | Report layout (built) | `clients/{slug}/reports/{id}.report.html` |
 | Report source (split) | `clients/{slug}/reports/{id}/` (styles.css, template.html, *.js) |
-| API key | `.env` → `MYTHIC_API_KEY` (agency key, `reports:read` + `reports:write`) |
+| API key | `.env` → `REPORTING_SUITE_API_KEY` (agency key, `reports:read` + `reports:write`) |
 
 ## CSS Classes Available
 
