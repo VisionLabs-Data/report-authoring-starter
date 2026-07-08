@@ -70,3 +70,21 @@ npm run sync -- {client}             # publish → live in the client's portal
 | `conflict` | The report was edited in the portal — DO NOT force; tell the user to resolve in the portal admin, then re-sync. |
 | `skip (portal.sync is not true)` | Set `portal.sync: true` in the `.report.json`. |
 | 4xx on the whole sync | Check `REPORTING_SUITE_API_KEY` scopes (reports:write) and the `portal.config.json` client binding. |
+
+## Sync from git (CI/CD)
+
+If the repo has `.github/workflows/sync.yml`, syncing also happens automatically on push —
+you don't have to run `npm run sync` by hand for the final publish:
+
+- **PR touching `clients/**`** → CI runs `sync --draft` (preview URLs in the job log,
+  nothing client-visible). Good for review before merge.
+- **Merge to `main`** → CI publishes, gated behind a `production` environment approval.
+
+Two consequences for how you work:
+
+- Local `npm run sync -- {client} --draft` is still the fast iteration loop; you don't
+  need to push to preview. Push/merge is for the *shipped* version, with a human approval.
+- A report's **`portal.status`** governs the publish run: leave it `"draft"` in the
+  `.report.json` while a report is in progress and it stays hidden even after a merge to
+  `main`; flip to `"published"` only when it's ready. Never flip it to `"published"`
+  yourself unless the user has approved the report — merging then makes it live.
