@@ -1,5 +1,5 @@
 {
-  "portalApiUrl": "https://api.your-portal.example",
+  "portalApiUrl": "https://api-service-production-4d43.up.railway.app",
   "apiKeyEnv": "REPORTING_SUITE_API_KEY",
   "clients": {
     "example-client": { "portalClientId": "REPLACE-with-portal-client-id" }

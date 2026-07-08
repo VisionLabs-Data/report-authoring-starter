@@ -8,13 +8,32 @@ every report you ship (its queries, tables, and description sync with it).
 ## Setup (once)
 
 1. **API key.** In your portal admin → API Keys, create an **agency-scoped** key with the
-   **Reports** capability (read + write).
-2. **Configure.** `cp .env.example .env`, fill in `REPORTING_SUITE_API_KEY` (and the MCP URL).
-   In `portal.config.json`, set `portalApiUrl` and map each `clients/{slug}` folder to its
-   portal client id (from the portal admin).
-3. **Install.** `npm install` (Node 22+).
+   **Reports** capability (read + write). Add the **Clients** capability (write) too if you
+   want to create/manage clients from here (see below).
+2. **Configure.** `cp .env.example .env` and paste your key into `REPORTING_SUITE_API_KEY` —
+   that's the only value you need. The portal URL is already wired in `.mcp.json` and
+   `portal.config.json`.
+3. **Bind a client.** In `portal.config.json`, map each `clients/{slug}` folder to its portal
+   client id. You can get that id two ways: copy it from the portal admin, or — with the
+   Clients capability on your key — just ask Claude Code (*"create a client named Acme Co"*)
+   and it returns the new id via the `create_client` tool.
+4. **Install.** `npm install` (Node 22+).
 
 No DNS or hosting setup — your reports render on your agency's report host automatically.
+
+## Managing clients from Claude Code
+
+With the **Clients (write)** capability on your key, Claude Code can create and manage the
+agency's clients over MCP — handy for first-run bootstrapping:
+
+- `create_client` — *"create a client named Acme Co"* → returns its `id` (use it in
+  `portal.config.json`) and `slug`.
+- `update_client` — rename, change description / access mode / timezone, or un-archive.
+- `archive_client` — soft-delete (hide from the portal; reversible).
+
+These are **metadata only** — BigQuery/PostHog/AI credentials and branding are set in the
+portal admin, and `clients:write` is restricted to agency-scoped keys. Once a client has its
+BigQuery integration configured in the portal, its reports can query live data.
 
 ## Scopes: how `reports:read` / `reports:write` work
 

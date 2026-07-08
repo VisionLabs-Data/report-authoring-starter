@@ -2,7 +2,7 @@
   "mcpServers": {
     "reporting-suite": {
       "type": "http",
-      "url": "${REPORTING_SUITE_MCP_URL}",
+      "url": "https://api-service-production-4d43.up.railway.app/mcp",
       "headers": {
         "Authorization": "Bearer ${REPORTING_SUITE_API_KEY}"
       }
