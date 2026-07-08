@@ -18,8 +18,15 @@ validation tier; the files are the delivery tier.
 
 Each `clients/{slug}/` folder is one client, bound to a portal client in
 `portal.config.json`. For MCP exploration, call `list_clients` then `select_client`
-with the same client. New client = new folder + `client.config.json` + a
-`portal.config.json` binding (portal client id from the portal admin).
+with the same client.
+
+**New client:** if the key has the Clients capability, call the `create_client` MCP tool
+(returns `{ id, slug }`), then wire it into the repo — bind `portalClientId` to the returned
+`id` in `portal.config.json` under a folder name you pick (a kebab label, NOT the returned
+uuid), scaffold `clients/{label}/client.config.json` + `reports/`, and tell the user to set
+up the client's BigQuery integration in the portal admin before authoring live-data reports.
+See the "Creating a new client" section in CLAUDE.md for the full sequence. (No Clients
+capability? Create the client in the portal admin and just add the binding + folder here.)
 
 ## 1. Plan
 

@@ -54,5 +54,27 @@ scripts/sync.ts             # pushes built reports to the portal
 - Never commit `.env` (the API key). `portal.config.json` holds no secrets.
 - If sync reports `conflict`, someone edited that report in the portal — resolve there
   before re-syncing; the sync never overwrites portal edits.
-- Adding a client = new `clients/{slug}/` folder + a `portal.config.json` binding
-  (portal client id from your portal admin).
+
+## Creating a new client
+
+When the user asks to create/add a client (and the key has the **Clients** capability),
+do ALL of these — creating the client alone is not enough; it must be wired into the repo:
+
+1. **Create it** — call the `create_client` MCP tool with the client `name` (optionally
+   `description`, `access_mode`, `timezone`). It returns `{ id, slug }`. The `id` is what
+   the repo binds to; the returned `slug` is an internal uuid — do NOT use it as the folder name.
+2. **Pick a folder name** — a short kebab-case label you choose (e.g. `acme-co`), NOT the
+   returned uuid. This is a local label only.
+3. **Bind it** — add to `portal.config.json` under `clients`:
+   `"acme-co": { "portalClientId": "<the id returned by create_client>" }`.
+4. **Scaffold** — create `clients/acme-co/client.config.json` (`name`, and once BigQuery is
+   configured, `gcp_project_id` + `datasets` + `branding.company_name`) and an empty
+   `reports/` folder.
+5. **Tell the user to configure data in the portal admin** — `create_client` sets metadata
+   only. Before any live-data report will work, the client's **BigQuery integration** must
+   be set up in the portal admin (credentials can't be set from here, by design). A plain
+   Looker Studio / URL-embed report needs no BigQuery and can be authored right away.
+6. Then plan + author as usual. `get_client_schema` only returns tables once step 5 is done.
+
+Existing clients created in the portal admin skip steps 1–2 — just add the binding (id from
+the portal) and the folder.
