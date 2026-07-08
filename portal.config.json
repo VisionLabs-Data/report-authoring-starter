@@ -1,0 +1,7 @@
+{
+  "portalApiUrl": "https://api.your-portal.example",
+  "apiKeyEnv": "MYTHIC_API_KEY",
+  "clients": {
+    "example-client": { "portalClientId": "REPLACE-with-portal-client-id" }
+  }
+}

@@ -1,0 +1,9 @@
+/* Report-scoped styles. The platform renderer supplies the base design system
+   (.vl-metric, .vl-chart-card, tables, filters) — add only what's unique here. */
+.ex-highlights {
+  margin-top: 16px;
+  font-size: 14px;
+}
+.ex-highlights .ex-best {
+  font-weight: 600;
+}

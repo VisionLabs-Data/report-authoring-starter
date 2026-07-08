@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mythic": {
+      "type": "http",
+      "url": "${MYTHIC_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${MYTHIC_API_KEY}"
+      }
+    }
+  }
+}
