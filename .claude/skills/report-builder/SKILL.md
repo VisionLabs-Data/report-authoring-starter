@@ -164,6 +164,7 @@ Use the portal's MCP tools:
 
 1. If your API key is agency-scoped, `list_clients` → `select_client` to pin the client for the session. (Skip if the key is client-scoped.)
 2. `get_client_schema` — returns the client's **authorized** BigQuery tables and columns.
+3. `list_metrics` (+ `get_metric`) and `get_glossary` — the client's **defined metrics, targets, and terminology**. Every KPI you render should use a defined metric's name and formula, and any metric with a target must show that target (see KPI Scorecards below). If the plan marked a metric **NEW**, confirm the user approved the definition before building. This keeps the report's numbers and labels consistent with the rest of the portal (planning covers this too — see report-planner Phase 1).
 
 **Query only tables returned by `get_client_schema`.** Never guess table names. If the data the report needs doesn't exist in any returned table, stop and tell the user: **their data pipeline needs the table added** — don't try to work around it, and don't retry with guessed names.
 
@@ -721,6 +722,19 @@ When a split-file report uses several components, keep a single shared copy of t
 ### KPI Scorecards with Sparklines
 
 Use instead of plain `vl-metric` cards whenever the report has time-series data. Scorecards show the headline number, a contextual subtitle, a period-over-period delta (when compare is active), and a sparkline bar chart of the last 7 days.
+
+**Targets.** If a KPI has a target defined in the portal (`get_metric`/`list_metrics` — see step 2), show progress against it, not just the period delta. Cheapest good version: a `vs target` label under the value (green when meeting/beating it, red when short), computed from the target value. Optionally add a goal line via a Chart.js annotation on the sparkline. The KPI's label and formula must match the defined metric — a "vs target" that measures a different formula than the target was set against is worse than none.
+
+```js
+function renderKpiTarget(elId, actual, target, isCurrency, higherIsBetter) {
+  var el = document.getElementById(elId);
+  if (target == null) { el.className = 'kpi-delta'; el.textContent = ''; return; }
+  var meeting = higherIsBetter ? actual >= target : actual <= target;
+  var pct = Math.round((actual / target) * 100);
+  el.className = 'kpi-delta visible ' + (meeting ? 'up' : 'down');
+  el.textContent = pct + '% of target (' + (isCurrency ? fmtCur(target) : fmt(target)) + ')';
+}
+```
 
 **CSS:**
 ```css
@@ -1496,6 +1510,8 @@ When building any new interactive report, include these by default:
 - [ ] **Split-file format** for reports that will exceed ~500 lines (use source directory with numbered JS files)
 - [ ] **Chart wrappers** — every `<canvas>` inside a `.chart-wrap` div with explicit height; `maintainAspectRatio: false` on every Chart.js instance
 - [ ] **KPI scorecards** with sparklines (not plain `vl-metric` cards)
+- [ ] **Metrics grounded in definitions** — KPI names/formulas match `list_metrics`/`get_glossary`; targets shown as vs-target / goal line
+- [ ] **`list_metrics` + `get_glossary` pulled** before building (definitions/targets/terminology)
 - [ ] **Sticky header** with title + date picker trigger + filter chips
 - [ ] **Custom date picker** with presets and compare toggle (if date range filtering is needed)
 - [ ] **Client-side filter chips** for key dimensions

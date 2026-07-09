@@ -45,6 +45,28 @@ scripts/sync.ts             # pushes built reports to the portal
    iterate (edit → build → sync --draft again; same draft updates in place).
 7. **Publish**: `npm run sync -- {client}` — the report appears in the client's portal.
 
+## Shared knowledge — the self-improving loop
+
+The portal is your team's shared brain. Everything you learn about a client lives there over
+MCP (after `select_client`), so the next person — or the next session — doesn't relearn it.
+
+- **Recall liberally, before you build.** At the start of any client work, `search_memories`
+  / `list_memories` and `list_documents` (then `get_document`) for that client. Prior data
+  quirks, table meanings, naming gotchas, and client preferences are usually already written
+  down — read them instead of rediscovering.
+- **Write back liberally, as you go.** The moment you learn something reusable — a column's
+  real meaning, a table that's stale/empty, a query pattern that worked, a client's stated
+  preference — save it: `create_memory` with `shared: true` (so the whole team sees it) for a
+  fact, or `create_document` for anything longer. A 30-second write saves the next person an
+  hour. Don't hoard it in the chat.
+- **After a hard session, leave a skill.** When you just fought through something non-obvious
+  (a gnarly join, a data pipeline surprise, a multi-step fix), `create_skill` capturing what
+  you learned and the steps to do it next time. That's how the loop compounds: today's debug
+  becomes tomorrow's playbook.
+
+Bias toward over-sharing. Duplicate-ish memory? Save it anyway; noise is cheaper than a lost
+lesson. If unsure whether something's worth recording, it is.
+
 ## Rules
 
 - A report's `id` == its `.report.json` filename == its folder name (kebab-case).

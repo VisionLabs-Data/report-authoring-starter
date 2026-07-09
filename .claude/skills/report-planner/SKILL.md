@@ -16,8 +16,9 @@ Before touching any data, establish the decision-making context:
 
 1. **Read the client config** (`clients/{slug}/client.config.json`) to get the client `name`, `gcp_project_id`, `datasets` (the logical→physical dataset map), and `branding.company_name`. The `clients/{slug}` folder maps to a portal client via `portal.config.json`'s clients map — the sync script sends that mapping to the portal.
 2. **Select the client over MCP.** If your API key is agency-scoped, call `list_clients` then `select_client` so subsequent schema and validation calls are scoped correctly. (Skip if the key is already client-scoped.)
-3. **Clarify the audience.** Who will read this report? (exec, ops manager, marketing team, the client themselves). This determines the level of detail and which metrics matter.
-4. **Clarify the goal.** What decision or action should this report enable? If the user says "build a report from table X," ask: "What should someone be able to decide or do after seeing this report?"
+3. **Pull the client's existing definitions first.** Before inventing metrics, call `list_metrics` (+ `get_metric` for the ones you'll feature) and `get_glossary` over MCP. These are the client's already-agreed definitions, targets, and terminology. Also skim `list_alerts` to see what they're already watching. Any metric you put on the dashboard should match a defined metric's formula and name, and any KPI with a target should show it as the goal line / delta-vs-target. If you need a metric that isn't defined yet, name it exactly as the glossary would and flag it — don't silently coin a competing definition. This is the same "recall before you build" reflex as memories/documents (see CLAUDE.md "Shared knowledge"); grounding numbers in the shared definitions is how a report agrees with the rest of the portal.
+4. **Clarify the audience.** Who will read this report? (exec, ops manager, marketing team, the client themselves). This determines the level of detail and which metrics matter.
+5. **Clarify the goal.** What decision or action should this report enable? If the user says "build a report from table X," ask: "What should someone be able to decide or do after seeing this report?"
 
 **Data source note:** reports query **BigQuery only** — every query in a report is a `sql` query against tables the client is authorized for. The single source of truth for what's queryable is the portal's `get_client_schema` MCP tool. Never plan around tables it doesn't return.
 
@@ -49,9 +50,9 @@ Run lightweight exploratory queries to understand what's actually in the table. 
 
 #### Step 3: Metric Discovery
 
-This is where critical thinking begins. For each potential metric:
+This is where critical thinking begins. **Start from the client's defined metrics** (`list_metrics`/`get_metric` from Phase 1) — those already have agreed names, formulas, and targets; reuse them verbatim. Only invent a metric when the definitions don't cover it. For each metric:
 
-1. **Name it clearly.** What would this be called in a meeting? ("Monthly churn rate," not "unsub_count / sub_count".)
+1. **Name it clearly, matching the glossary.** Use the defined metric's name and the glossary's term ("Monthly churn rate," not "unsub_count / sub_count") so the report reads the same as everything else the client sees. If it has a target, the KPI shows it (goal line, or delta-vs-target instead of just period delta).
 2. **Classify it:**
    - **Volume metric** — raw count or sum (sends, subscribers, revenue). Useful for scale context.
    - **Rate metric** — ratio of two volumes (CTR, churn rate, conversion rate). Where the real insight lives.
@@ -154,6 +155,20 @@ Present the plan in this format:
 **Date range:** [Available window]
 **Recommended cadence:** [How often should this be refreshed?]
 
+### Metrics & Definitions (grounding)
+
+List every headline metric and where its definition comes from — so the build matches
+the portal's shared definitions (`list_metrics` / `get_glossary` from Phase 1):
+
+| Metric (report label) | Defined metric / glossary term | Formula | Target | Source |
+|---|---|---|---|---|
+| [e.g. Qualified Leads] | [defined metric name, or "NEW"] | [the agreed formula] | [target + grain, or —] | `list_metrics` / `get_glossary` / new |
+
+- Reuse the defined name and formula verbatim. Mark anything not yet defined as **NEW** and
+  call it out for the user to confirm — don't silently coin a competing definition.
+- Any metric with a target shows it on the dashboard (goal line / delta-vs-target, not just
+  period delta).
+
 ### Interactive Features
 - **Date picker:** Custom with compare toggle / Renderer built-in / None (fixed)
 - **Compare:** Period-over-period deltas on KPIs and trend charts
@@ -168,9 +183,10 @@ Present the plan in this format:
 **Header:** Sticky header with title, date picker trigger, filter chips
 
 **KPI Scorecards (top row):**
-- [Metric name] — [format: number/currency/percent] — sparkline field — [why it matters]
+- [Metric name] — [format: number/currency/percent] — sparkline field — [target, if any] — [why it matters]
 - [Metric name] — ...
-(All KPIs show period-over-period deltas when compare is active)
+(All KPIs show period-over-period deltas when compare is active; KPIs with a defined target
+also show progress vs. target — goal line on the sparkline or a delta-vs-target label)
 
 **Visualizations:**
 1. [Chart type]: [Title] — [what it shows and what action it enables]
@@ -275,3 +291,4 @@ These are common traps that produce bad reports. Avoid them:
 - **Static snapshots.** If the report only makes sense for one point in time, it'll be stale tomorrow. Design for trends and ongoing monitoring.
 - **Correlation without context.** "X and Y move together" is an observation. "X and Y move together because [mechanism], which means you should [action]" is an insight.
 - **Planning around data that doesn't exist.** If `get_client_schema` doesn't return the table, the report can't query it. Flag the gap to the user (their data pipeline needs the table added) instead of guessing table names.
+- **Redefining metrics the client already defined.** If `list_metrics`/`get_glossary` already define "Qualified Lead" or "MRR," don't coin a subtly different formula or name on the dashboard — the report will silently disagree with the rest of the portal. Reuse the definition, or flag the discrepancy.

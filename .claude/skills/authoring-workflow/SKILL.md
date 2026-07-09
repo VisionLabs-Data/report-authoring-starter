@@ -33,6 +33,11 @@ capability? Create the client in the portal admin and just add the binding + fol
 Load the **report-planner** skill. Know the story before writing files: headline
 metric, breakdowns, time range. If vague, ask one or two sharp questions.
 
+**First, recall.** Before planning, `search_memories` / `list_memories` and `list_documents`
+for this client — prior data quirks, table meanings, and preferences are usually already
+written down by whoever worked here last. Read them instead of rediscovering. (See the
+"Shared knowledge" section in CLAUDE.md.)
+
 ## 2. Explore the data (MCP)
 
 - `get_client_schema` — the client's authorized BigQuery tables + columns. This is
@@ -67,6 +72,20 @@ npm run sync -- {client}             # publish → live in the client's portal
 
 - Never claim a report is shipped unless the sync output shows `create`/`apply`.
 - Publishing is explicit — only when the user asks, or when they've approved the preview.
+
+## 5. Write back what you learned
+
+Close the loop before you move on. Anything reusable you turned up — a column's real meaning,
+a stale/empty table, a query pattern that worked, a client preference — save it:
+`create_memory` with `shared: true` (a fact) or `create_document` (something longer). If this
+report took a hard, non-obvious fight to get right, `create_skill` capturing the playbook so
+the next person skips the struggle. See CLAUDE.md's "Shared knowledge" section.
+
+If the report introduced a metric or term that wasn't defined yet (a **NEW** row in the plan's
+Metrics & Definitions table) and the user confirmed it, define it in the portal so the next
+report is grounded in it — `create_metric` (+ `set_metric_target` if it has a goal) and
+`create_glossary_term` — provided your key has that capability. That's the definitions half of
+the self-improving loop: today's ad-hoc metric becomes tomorrow's shared definition.
 
 ## Sync outcomes
 
