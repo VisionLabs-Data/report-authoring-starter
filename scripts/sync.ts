@@ -28,7 +28,7 @@ import "dotenv/config";
  * matching files → undefined, which the portal reads as "this report has no split
  * source" rather than "its source is empty".
  */
-async function readSourceFiles(dir: string): Promise<Record<string, string> | undefined> {
+async function readSourceFiles(dir: string, meta: ReportMeta): Promise<Record<string, string> | undefined> {
   const KEEP = /^(template\.html|styles\.css|[a-z0-9][a-z0-9._-]{0,80}\.js)$/;
   let names: string[];
   try { names = await readdir(dir); } catch { return undefined; }
@@ -37,7 +37,14 @@ async function readSourceFiles(dir: string): Promise<Record<string, string> | un
     if (!KEEP.test(name)) continue;
     out[name] = await readFile(join(dir, name), "utf-8");
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  if (Object.keys(out).length === 0) return undefined;
+  // The report's title and description, as an editable file. They render at the top
+  // of the report but live in <id>.report.json, not in template.html — so without
+  // this an agent asked to change that text cannot find it and reports it already
+  // gone. Sent DERIVED so the portal's baseline matches the repo, which is what
+  // makes an edit coming back through `npm run pull` a real diff.
+  out["report.json"] = `${JSON.stringify({ title: meta.title ?? "", description: meta.description ?? "" }, null, 2)}\n`;
+  return out;
 }
 
 const ROOT = join(import.meta.dirname!, "..");
@@ -137,7 +144,7 @@ async function main() {
         // only built HTML, so Studio's file editor has nothing to open ("this report has
         // no editable source files") and `npm run pull` can never have anything to
         // return — the repo-as-arbiter loop stays open at this end.
-        source_files: await readSourceFiles(join(reportsDir, meta.id)),
+        source_files: await readSourceFiles(join(reportsDir, meta.id), meta),
         // Hash of the whole parsed .report.json — the portal uses this for
         // conflict detection (identical algorithm on both sides).
         spec_hash: specHash(meta),

@@ -34,6 +34,28 @@ interface PendingReport {
   files: Record<string, string>;
 }
 
+/**
+ * Fold a pulled report.json's title/description into <id>.report.json, preserving
+ * every other key and the file's own formatting conventions. Returns false when
+ * nothing changed, so an unchanged pull doesn't report a write it didn't make.
+ */
+async function mergeReportMeta(reportsDir: string, id: string, pulled: string): Promise<boolean> {
+  const file = join(reportsDir, `${id}.report.json`);
+  let meta: Record<string, unknown>;
+  try {
+    meta = JSON.parse(await readFile(file, "utf-8"));
+  } catch {
+    console.error(`[warn] ${id}: no ${id}.report.json to merge title/description into — skipped`);
+    return false;
+  }
+  const { title, description } = JSON.parse(pulled) as { title?: string; description?: string };
+  if (meta.title === title && meta.description === description) return false;
+  if (title !== undefined) meta.title = title;
+  if (description !== undefined) meta.description = description;
+  await writeFile(file, `${JSON.stringify(meta, null, 2)}\n`, "utf-8");
+  return true;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const checkOnly = args.includes("--check");
@@ -81,6 +103,15 @@ async function main() {
       const dir = join(CLIENTS_BASE, slug, "reports", r.slug);
       await mkdir(dir, { recursive: true });
       for (const name of names) {
+        // report.json is the report's title + description, which in THIS repo live in
+        // <slug>.report.json beside the source directory, not in it. Merge the two
+        // fields rather than writing the file: the rest of that spec (queries,
+        // source_tables, portal settings) is the repo's, and the portal never sees it.
+        if (name === "report.json") {
+          const written = await mergeReportMeta(join(CLIENTS_BASE, slug, "reports"), r.slug, r.files[name]);
+          if (written) wroteTotal++;
+          continue;
+        }
         await writeFile(join(dir, name), r.files[name], "utf-8");
         wroteTotal++;
       }
