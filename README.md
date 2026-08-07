@@ -18,6 +18,10 @@ every report you ship (its queries, tables, and description sync with it).
    Clients capability on your key — just ask Claude Code (*"create a client named Acme Co"*)
    and it returns the new id via the `create_client` tool.
 4. **Install.** `npm install` (Node 22+).
+5. **Register the client.** `npm run sync -- <slug>` once, before asking for anything.
+   The first sync is what tells the portal your `gcp_project_id` and `datasets` — which
+   is what `get_client_schema` reads. Ask Claude for a report before this and it gets
+   *"No configuration found for client …"* on its very first tool call.
 
 No DNS or hosting setup — your reports render on your agency's report host automatically.
 
@@ -63,7 +67,8 @@ Your `clients/{slug}` folder name is just a local label — the binding is the r
 
 ## Daily loop
 
-Open this folder in Claude Code and ask for a report:
+Open this folder in Claude Code and ask for a report (after setup step 5 — the client
+must be registered before Claude can read its schema):
 
 > Build a revenue overview for Acme Co — monthly trend, KPI row, top products table.
 
