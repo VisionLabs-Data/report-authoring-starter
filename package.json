@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build-reports.ts",
-    "sync": "tsx scripts/sync.ts"
+    "sync": "tsx scripts/sync.ts",
+    "pull": "tsx scripts/pull.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

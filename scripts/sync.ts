@@ -22,6 +22,24 @@ import { join } from "path";
 import { specHash } from "./lib/report-sync-core";
 import "dotenv/config";
 
+/**
+ * A report's editable source, keyed by bare filename — the same names the portal's
+ * write_report_file accepts (template.html, styles.css, *.js). Absent directory or no
+ * matching files → undefined, which the portal reads as "this report has no split
+ * source" rather than "its source is empty".
+ */
+async function readSourceFiles(dir: string): Promise<Record<string, string> | undefined> {
+  const KEEP = /^(template\.html|styles\.css|[a-z0-9][a-z0-9._-]{0,80}\.js)$/;
+  let names: string[];
+  try { names = await readdir(dir); } catch { return undefined; }
+  const out: Record<string, string> = {};
+  for (const name of names.sort()) {
+    if (!KEEP.test(name)) continue;
+    out[name] = await readFile(join(dir, name), "utf-8");
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 const ROOT = join(import.meta.dirname!, "..");
 const CLIENTS_BASE = join(ROOT, "clients");
 
@@ -115,6 +133,11 @@ async function main() {
         bigquery_tables: meta.source_tables ?? [],
         report_meta: meta,
         html_content: html,
+        // The report's SOURCE, alongside the build output. Without it the portal holds
+        // only built HTML, so Studio's file editor has nothing to open ("this report has
+        // no editable source files") and `npm run pull` can never have anything to
+        // return — the repo-as-arbiter loop stays open at this end.
+        source_files: await readSourceFiles(join(reportsDir, meta.id)),
         // Hash of the whole parsed .report.json — the portal uses this for
         // conflict detection (identical algorithm on both sides).
         spec_hash: specHash(meta),

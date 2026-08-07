@@ -85,6 +85,25 @@ Drafts update in place — iterate with edit → build → sync --draft until th
 looks right. Publishing is explicit. Portal-side edits are never overwritten (the sync
 flags a conflict instead).
 
+## Edits made in the portal (`npm run pull`)
+
+Reports synced from this repo stay editable in the portal's AI Studio — but the repo is
+the arbiter, so an edit there does **not** go live. The portal stages the edited source
+and marks the report as ahead of the repo; nothing changes for the client until the repo
+produces a new build.
+
+```bash
+npm run pull                  # write pending Studio edits into clients/*/reports/*/
+git diff                      # review — this is the point of the round trip
+npm run build && npm run sync # publish them
+```
+
+`npm run pull -- --check` writes nothing and exits non-zero if anything is pending —
+wire it into CI to catch a portal edit that never made it back to git.
+
+There's no acknowledgement to send: the next `npm run sync` stamps the report and it
+drops off the pending list, so a failed pull is safe to re-run.
+
 ## Continuous sync (GitHub Actions)
 
 `.github/workflows/sync.yml` runs the same build + sync on every change under
