@@ -22,6 +22,10 @@ every report you ship (its queries, tables, and description sync with it).
    The first sync is what tells the portal your `gcp_project_id` and `datasets` — which
    is what `get_client_schema` reads. Ask Claude for a report before this and it gets
    *"No configuration found for client …"* on its very first tool call.
+   You do **not** need a report to exist first: a client with only a `client.config.json`
+   registers fine. (It didn't until 2026-08-08 — sync bailed before sending anything when
+   a client had no syncable report, so the one command that registers a client refused to
+   run until the client was already usable.)
 
 No DNS or hosting setup — your reports render on your agency's report host automatically.
 

@@ -102,6 +102,12 @@ async function main() {
       }
       const dir = join(CLIENTS_BASE, slug, "reports", r.slug);
       await mkdir(dir, { recursive: true });
+      // Report what was WRITTEN, not what was offered. report.json is merged into
+      // <slug>.report.json and merges to nothing when the title and description
+      // already match — so printing four names above "Wrote 3 file(s)" read as one
+      // having silently failed, when the pull was entirely correct.
+      const wrote: string[] = [];
+      const unchanged: string[] = [];
       for (const name of names) {
         // report.json is the report's title + description, which in THIS repo live in
         // <slug>.report.json beside the source directory, not in it. Merge the two
@@ -109,13 +115,18 @@ async function main() {
         // source_tables, portal settings) is the repo's, and the portal never sees it.
         if (name === "report.json") {
           const written = await mergeReportMeta(join(CLIENTS_BASE, slug, "reports"), r.slug, r.files[name]);
-          if (written) wroteTotal++;
+          if (written) { wroteTotal++; wrote.push(`${r.slug}.report.json (title/description)`); }
+          else unchanged.push("report.json");
           continue;
         }
         await writeFile(join(dir, name), r.files[name], "utf-8");
         wroteTotal++;
+        wrote.push(name);
       }
-      console.log(`[pull] ${slug}/${r.slug}: ${names.join(", ")}`);
+      console.log(
+        `[pull] ${slug}/${r.slug}: ${wrote.length ? wrote.join(", ") : "nothing changed"}` +
+        (unchanged.length ? ` — already current: ${unchanged.join(", ")}` : ""),
+      );
     }
   }
 

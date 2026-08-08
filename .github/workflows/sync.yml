@@ -6,16 +6,35 @@ name: Sync reports
 #    (preview URLs in the job log; nothing becomes client-visible).
 #  - Merge to main → builds and PUBLISHES, honoring each report's
 #    portal.status (a report marked "draft" stays a draft even here).
+#  - Run it by hand (Actions → Sync reports → Run workflow) to republish without
+#    a code change — optionally for one client.
 #
 # Setup (once, in the repo on GitHub):
 #  1. Settings → Secrets and variables → Actions → new secret
 #     REPORTING_SUITE_API_KEY = your agency key (reports:read + reports:write).
-#  2. Settings → Environments → create "production" and add required reviewers.
-#     The publish job below is pinned to it, so a merge to main WAITS for an
-#     approval before anything goes live. Remove the `environment:` line to
-#     publish automatically instead.
+#
+# What gates a publish:
+#   Each report's own `portal.status: "draft"` in its .report.json. It survives a
+#   publish run, so a report you are not ready to ship stays hidden. That works on
+#   every plan.
+#
+#   A required-reviewers approval gate does NOT. `environment: production` on the
+#   publish job is only a gate if that environment has a protection rule, and on a
+#   private repo without a paid plan GitHub refuses to create one:
+#     "Failed to create the environment protection rule. Please ensure the billing
+#      plan supports the required reviewers protection rule."
+#   An UNPROTECTED environment approves instantly — so pinning to one would look
+#   like a gate while holding nothing back, which is worse than having no gate at
+#   all. If you are on a plan that supports it, create the environment WITH
+#   reviewers and add `environment: production` to the publish job below.
 
 on:
+  workflow_dispatch:
+    inputs:
+      client:
+        description: "Client slug to sync (blank = all clients)"
+        required: false
+        type: string
   pull_request:
     paths: ["clients/**", "scripts/**"]
   push:
@@ -33,15 +52,22 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # Fail the PR if someone edited a report in the Studio and it is not in this
+      # repo yet. The sync below would otherwise overwrite their edit with this
+      # branch's older copy — silently, and the portal has no other copy of it.
+      # Clear it with `npm run pull`, then commit what it writes.
+      - name: Check for unpulled Studio edits
+        run: npm run pull -- --check
+        env:
+          REPORTING_SUITE_API_KEY: ${{ secrets.REPORTING_SUITE_API_KEY }}
       - run: npm run build
       - run: npm run sync -- --draft
         env:
           REPORTING_SUITE_API_KEY: ${{ secrets.REPORTING_SUITE_API_KEY }}
 
   publish:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment: production # approval gate — see setup note above
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +76,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm run sync
+      # The client input is read from the environment, never interpolated into the
+      # script — a workflow_dispatch input is attacker-supplied text on a public repo.
+      - name: Sync
+        run: |
+          if [ -n "$CLIENT" ]; then npm run sync -- "$CLIENT"; else npm run sync; fi
         env:
+          CLIENT: ${{ inputs.client }}
           REPORTING_SUITE_API_KEY: ${{ secrets.REPORTING_SUITE_API_KEY }}

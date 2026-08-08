@@ -93,6 +93,13 @@ async function main() {
 
   for (const slug of clientDirs) {
     const binding = portalCfg.clients[slug];
+    // The shipped example still carries its placeholder. Say so in its own words:
+    // "no portalClientId" is also what a real misconfiguration prints, and a [skip]
+    // line you see on every run is a [skip] line you stop reading.
+    if (binding?.portalClientId?.startsWith("REPLACE-")) {
+      console.log(`[skip] ${slug}: still the template placeholder — bind it to a real portal client id, or delete clients/${slug}/ and its entry in portal.config.json`);
+      continue;
+    }
     if (!binding?.portalClientId) {
       console.log(`[skip] ${slug}: no portalClientId in portal.config.json — add it under clients.${slug}`);
       continue;
@@ -107,10 +114,16 @@ async function main() {
     }
 
     const reportsDir = join(clientDir, "reports");
-    if (!(await exists(reportsDir))) { console.log(`[skip] ${slug}: no reports/`); continue; }
+    // No reports/ yet is fine — the POST below still REGISTERS the client. Bailing
+    // here was half of a chicken-and-egg: client_config rides on the sync request, so
+    // a freshly bound client with only a client.config.json never registered, and
+    // get_client_schema kept answering "run the repo's sync once" to someone who just
+    // had. The other half is `reports.length === 0`, below.
+    const hasReportsDir = await exists(reportsDir);
+    if (!hasReportsDir) console.log(`[info] ${slug}: no reports/ yet — registering the client only`);
 
     const reports: Array<Record<string, unknown>> = [];
-    for (const f of await readdir(reportsDir)) {
+    for (const f of hasReportsDir ? await readdir(reportsDir) : []) {
       if (!f.endsWith(".report.json")) continue;
       const meta = JSON.parse(await readFile(join(reportsDir, f), "utf-8")) as ReportMeta;
       if (meta.portal?.sync !== true) { console.log(`[skip] ${slug}/${meta.id}: portal.sync is not true`); continue; }
@@ -151,7 +164,13 @@ async function main() {
       });
     }
 
-    if (reports.length === 0) { console.log(`[skip] ${slug}: nothing to sync`); continue; }
+    // Zero reports still POSTs — that request is what registers the client (see above).
+    // Without a client.config.json there is genuinely nothing to send, so skip that.
+    if (reports.length === 0 && Object.keys(clientConfig).length === 0) {
+      console.log(`[skip] ${slug}: no reports and no client.config.json — nothing to send`);
+      continue;
+    }
+    if (reports.length === 0) console.log(`[info] ${slug}: no syncable reports — registering the client so its schema resolves`);
 
     const res = await fetch(`${base}/v1/report-authoring/sync`, {
       method: "POST",
