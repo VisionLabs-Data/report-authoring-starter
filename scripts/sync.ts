@@ -176,8 +176,11 @@ async function main() {
     for (const r of body.results ?? []) {
       const extra = r.previewUrl ? `\n         preview: ${r.previewUrl}` : r.reason ? ` (${r.reason})` : r.error ? ` — ${r.error}` : "";
       console.log(`[${r.action}] ${slug}/${r.slug}${extra}`);
-      if (r.action === "error") hadError = true;
-      if (r.action === "conflict") console.log(`         portal-side edits detected — resolve in the portal admin before re-syncing`);
+      // A conflict published NOTHING. Printing it and exiting 0 made push-to-publish
+      // report success on a merge that shipped nothing — a green check on main with
+      // the report still on its old build. Only `skip` is a benign non-publish.
+      if (r.action === "error" || r.action === "conflict") hadError = true;
+      if (r.action === "conflict") console.log(`         portal-side edits detected — nothing was published for this report`);
     }
   }
 
