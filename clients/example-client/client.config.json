@@ -2,7 +2,7 @@
   "name": "Example Client",
   "gcp_project_id": "your-gcp-project",
   "datasets": {
-    "main": "example_client_main"
+    "main": "example_client"
   },
   "branding": {
     "company_name": "Example Client"

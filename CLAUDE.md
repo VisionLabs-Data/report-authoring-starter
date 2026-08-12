@@ -22,6 +22,30 @@ scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
 ```
 
+## Where the data lives
+
+**One dataset per client**, named after the client, in your agency's GCP project. All three
+layers live in it, told apart by table prefix:
+
+| Prefix | What it is | Use it? |
+|---|---|---|
+| `raw_<provider>_*` | Straight from Airbyte — `raw_meta_ads_ads`, `raw_google_ads_campaign`. Connector-shaped, deduped but not reconciled. | Only when nothing above covers it |
+| `staging_*` | Cleaned and typed, one concept per table. Intermediate. | Rarely — usually a step on the way to `main_` |
+| `main_*` | Modelled and reporting-ready. Joined, named in business terms. | **Default. Build reports on these.** |
+
+Reaching past `main_` into `raw_` usually means re-deriving something the pipeline already
+computed — with a different answer, which is how two reports end up disagreeing. If the
+number you need isn't in `main_`, that's a pipeline gap: say so rather than rebuilding it in
+report SQL. Check `list_metrics` first; a governed metric beats your own aggregate.
+
+The dataset name is fixed when the client is created and never changes, so a query written
+today keeps working. **`get_client_schema` remains the only source of truth for what
+actually exists** — this table tells you which layer to prefer, not what to assume is there.
+
+Clients onboarded before Aug 2026 may use the older layout (a dataset per layer:
+`<client>_raw`, `<client>_staging`, `<client>_main`). Same three layers, different
+packaging. `get_client_schema` reports whichever one the client has.
+
 ## The loop
 
 **Always load the relevant skill before starting** — they carry the contracts:

@@ -22,6 +22,8 @@ Before touching any data, establish the decision-making context:
 
 **Data source note:** reports query **BigQuery only** — every query in a report is a `sql` query against tables the client is authorized for. The single source of truth for what's queryable is the portal's `get_client_schema` MCP tool. Never plan around tables it doesn't return.
 
+**Prefer the modelled layer.** The client's dataset holds three layers, told apart by table prefix: `raw_<provider>_*` (straight from Airbyte), `staging_*` (cleaned, intermediate), `main_*` (modelled, reporting-ready). Plan on `main_*`. Dropping to `raw_*` means re-deriving something the pipeline already computed, and your answer will differ from every other report that used the modelled table — that is how two dashboards end up disagreeing about the same number. If what you need only exists in `raw_*`, treat it as a pipeline gap and flag it under Future Enhancements rather than quietly rebuilding the logic in report SQL. (Older clients may instead have a dataset per layer — `<client>_raw` / `<client>_staging` / `<client>_main`. Same rule: plan on the modelled one.)
+
 If the request is open-ended ("what reports can we build for this client?"):
 - Call `get_client_schema` to list the client's authorized tables and columns
 - Summarize what each table appears to contain
