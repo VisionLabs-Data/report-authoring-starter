@@ -84,15 +84,27 @@ cannot be summed. A rate column with no warning is how a report ends up averagin
 
 ## Orchestration
 
-You do **not** need to schedule anything. When a client connects a data source in the portal,
-the platform puts that connection into the client's orchestrated pipeline automatically: it
-runs the Airbyte syncs, waits for them to finish, then triggers Dataform — so models never run
-against half-loaded tables. Per-connection Airbyte crons are switched to manual and stashed
-when this happens; that's expected, and disabling orchestration in the portal hands them back.
+**Do not schedule anything yourself.** The portal orchestrates the client's pipeline: when they
+connect their first data source it runs the Airbyte syncs, waits for them to finish, then
+triggers Dataform — so models never run against half-loaded tables.
+
+Because the portal owns the timing, it takes the schedules over when the pipeline is first set
+up. Both of these are expected, not a misconfiguration:
+
+- per-connection **Airbyte crons** are switched to `manual` (the originals are stashed and
+  handed back if orchestration is disabled),
+- the **Dataform workflowConfig's cron is cleared**. Leaving it would run Dataform twice a
+  day: once orchestrated, once on its own against whatever had landed by then.
+
+Set the run time in the portal (`/admin/pipeline`), not in GCP. It's client-local, 1am by
+default.
 
 What the platform needs from your repo: a **workflowConfig** with a **releaseConfig** for it to
-compile from. Without one, every run fails at the Dataform step. Check
-`/admin/pipeline` in the portal to see a client's scope, schedule, and last run.
+compile from. Without one, every run fails at the Dataform step — that's the single most common
+setup mistake. `/admin/pipeline` shows a client's scope, schedule, and last run.
+
+**A brand-new client with no Dataform repo yet is fine.** Orchestration runs the syncs and
+reports that there's nothing to model; add the repo when you're ready and it starts running.
 
 Older clients (pre-Aug 2026) use a dataset per layer instead — `<client>_raw`,
 `<client>_staging`, `<client>_main`. Same three layers, same rules about what goes in each.
