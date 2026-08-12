@@ -56,6 +56,7 @@ packaging. `get_client_schema` reports whichever one the client has.
 | **report-builder** | Creating/modifying report files — the split-file + runtime contract |
 | **dataviz** | Choosing charts, layout, and visual design |
 | **authoring-workflow** | The end-to-end loop reference |
+| **dataform-pipeline** | Setting up or editing the client's data models (where tables live, layer rules) |
 
 1. **Plan** (report-planner skill) — what question does the report answer?
 2. **Explore data** over MCP: `select_client` → `get_client_schema` (the client's real
@@ -107,15 +108,19 @@ When the user asks to create/add a client (and the key has the **Clients** capab
 do ALL of these — creating the client alone is not enough; it must be wired into the repo:
 
 1. **Create it** — call the `create_client` MCP tool with the client `name` (optionally
-   `description`, `access_mode`, `timezone`). It returns `{ id, slug }`. The `id` is what
-   the repo binds to; the returned `slug` is an internal uuid — do NOT use it as the folder name.
+   `description`, `access_mode`, `timezone`). It returns `{ id, slug, dataset_slug }`. The
+   `id` is what the repo binds to; `slug` is an internal uuid — do NOT use it as the folder
+   name. **`dataset_slug` is the client's BigQuery dataset** and is fixed forever: write it
+   into `client.config.json` verbatim rather than guessing from the name, which may have been
+   de-duplicated (a second "ProHealth" becomes `prohealth_2`).
 2. **Pick a folder name** — a short kebab-case label you choose (e.g. `acme-co`), NOT the
    returned uuid. This is a local label only.
 3. **Bind it** — add to `portal.config.json` under `clients`:
    `"acme-co": { "portalClientId": "<the id returned by create_client>" }`.
-4. **Scaffold** — create `clients/acme-co/client.config.json` (`name`, and once BigQuery is
-   configured, `gcp_project_id` + `datasets` + `branding.company_name`) and an empty
-   `reports/` folder.
+4. **Scaffold** — create `clients/acme-co/client.config.json` with `name`,
+   `branding.company_name`, your agency's `gcp_project_id`, and
+   `"datasets": { "main": "<dataset_slug from step 1>" }` — one dataset per client, holding
+   all three layers (see the **dataform-pipeline** skill). Add an empty `reports/` folder.
 5. **Tell the user to configure data in the portal admin** — `create_client` sets metadata
    only. Before any live-data report will work, the client's **BigQuery integration** must
    be set up in the portal admin (credentials can't be set from here, by design). A plain
