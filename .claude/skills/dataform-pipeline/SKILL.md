@@ -55,15 +55,31 @@ set `schema:` explicitly — a missed one silently lands in the default client's
 
 ## Model config
 
-The layer is in the **name**, not the schema:
+The layer is in the **name**, not the schema. This example is **complete on purpose** — it carries
+every block a model must ship with (below). Copy the shape, don't strip it back:
 
 ```js
 config {
   type: "table",
   schema: "acme_dental",          // the client dataset — or omit to inherit defaultDataset
   name: "main_channel_performance",
-  description: "One row per channel per day. Spend reconciled to platform totals.",
+  description: "One row per channel per day. Spend/impressions/clicks are additive; ctr is a ratio — recompute from totals, never average.",
   tags: ["main", "marketing"],
+  bigquery: {
+    partitionBy: "report_date",                       // every time-series table: partition by its date column
+    clusterBy: ["channel"]                            // cluster by the columns reports filter on
+  },
+  assertions: {
+    uniqueKey: ["report_date", "channel"],            // THE primary key — the run FAILS on a duplicate
+    nonNull: ["report_date", "channel", "spend"],     // the key + the money columns
+    rowConditions: ["spend >= 0", "ctr IS NULL OR ctr BETWEEN 0 AND 1"]  // ranges / enums
+  },
+  columns: {                                          // ONE line per output column — Dataform pushes
+    report_date: "The day (partition key).",           //   these into the BigQuery schema, which is
+    channel: "Marketing channel, e.g. meta / google.", //   exactly what the portal AI reads to write
+    spend: "Amount spent. Additive.",                  //   correct SQL
+    ctr: "clicks / impressions for this row. A ratio — recompute from sums, never average."
+  }
 }
 ```
 
@@ -73,9 +89,27 @@ config {
 | Staging | `staging_*` | One concept per table: typed, cleaned, deduped, renamed to business terms. No joins across concepts |
 | Main | `main_*` | Reporting-ready. Joined, aggregated to a stated grain, safe for a report to query directly |
 
-`description` is not decoration — the portal's AI reads it when answering questions about the
-client's data. State the **grain** ("one row per campaign per day") and any measure that
-cannot be summed. A rate column with no warning is how a report ends up averaging an average.
+### Every model ships with these — no exceptions
+
+These are DEFAULTS, not polish. A model missing any of them is incomplete; add them when you write
+it, not "later" (later never comes, and the gap is invisible until a number is wrong):
+
+1. **`description` with the grain** — "one row per campaign per day" — and a note on any measure
+   that can't be summed. The portal AI reads this. A rate column with no warning is how a report
+   ends up averaging an average.
+2. **`columns:` — one line for EVERY output column.** Dataform writes these into the BigQuery
+   column metadata, and that metadata is what the reporting agent reads to write correct SQL. Say
+   the grain column, mark additive measures "Additive", and warn on ratios ("recompute from sums").
+   This is the detail most often skipped and the one that pays back most.
+3. **`assertions.uniqueKey` on the grain — this IS the primary key.** BigQuery enforces no keys; a
+   Dataform assertion is a query that fails the run when violated, so the uniqueKey is the only
+   thing standing between you and a silent fan-out that doubles a number.
+4. **`assertions.nonNull`** on the key and the money columns.
+5. **`assertions.rowConditions`** for value ranges and enums — `spend >= 0`, `ctr BETWEEN 0 AND 1`,
+   `status IN ('ok','no_utm',…)`. Cheap, and they catch a broken upstream sync before a report does.
+6. **`bigquery.partitionBy`** its date column for any time-series table, and **`clusterBy`** the
+   columns reports filter on (pipeline, platform, channel). Skip BOTH only for a small
+   dimension/seed table (a handful of rows — partitioning just adds overhead there).
 
 ## Rules that prevent the expensive mistakes
 
@@ -86,8 +120,12 @@ cannot be summed. A rate column with no warning is how a report ends up averagin
 - **State the grain in every model's description**, and never mix grains in one table.
 - **Rates are computed at read time**, as ratio-of-totals. Store the numerator and denominator
   as additive columns; a stored per-row rate will eventually be summed by something.
-- **Assertions on the boundaries** — uniqueness on the grain, not-null on join keys. A silent
-  fan-out from a duplicated dimension row is the single most common way a number doubles.
+- **Assertions on the boundaries** — the full set above (uniqueKey = the primary key, nonNull on
+  join keys + money, rowConditions for ranges). A silent fan-out from a duplicated dimension row is
+  the single most common way a number doubles, and the uniqueKey is what turns it into a failed run
+  instead of a wrong dashboard.
+- **Column descriptions and partition/cluster are part of "done"**, not extras — see the mandatory
+  list above. The scaffold's models are the worked example; match them.
 
 ## Orchestration
 
