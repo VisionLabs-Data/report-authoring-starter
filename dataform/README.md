@@ -31,6 +31,13 @@ dataform/
 | Staging | `staging` | you — typed, cleaned, one concept per table, no cross-concept joins |
 | Main | `main` | you — joined + attributed to a stated grain; reports query these directly |
 
+Every model self-documents: a table `description` with the grain, a **`columns:`** description per
+field (Dataform pushes these into the BigQuery schema, where the reporting agent reads them), and
+assertions that stand in for constraints BigQuery doesn't enforce — a **`uniqueKey`** (the primary
+key: the run fails on a duplicate), **`nonNull`** on the key + money columns, and **`rowConditions`**
+for ranges (`spend >= 0`, `ctr BETWEEN 0 AND 1`, the tracking `issue` enum). Keep that up when you
+add a model — it's what makes the layer safe to copy.
+
 ## The semantic layer, end to end
 
 The two ad platforms come in as separate raw streams and leave as one attributed table:

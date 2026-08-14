@@ -6,7 +6,24 @@ config {
   bigquery: { partitionBy: "summary_date" },
   assertions: {
     uniqueKey: ["summary_date"],
-    nonNull: ["summary_date"]
+    nonNull: ["summary_date"],
+    rowConditions: ["total_ad_spend >= 0", "blended_ctr IS NULL OR blended_ctr BETWEEN 0 AND 1"]
+  },
+  columns: {
+    summary_date: "The day (partition key). One row per day.",
+    meta_ad_spend: "Total Meta spend that day.",
+    meta_impressions: "Total Meta impressions.",
+    meta_clicks: "Total Meta clicks.",
+    meta_link_clicks: "Total Meta link clicks.",
+    google_ad_spend: "Total Google spend that day.",
+    google_impressions: "Total Google impressions.",
+    google_clicks: "Total Google clicks.",
+    total_ad_spend: "Meta + Google spend.",
+    total_impressions: "Meta + Google impressions.",
+    total_clicks: "Meta + Google clicks.",
+    total_link_clicks: "Meta + Google link clicks.",
+    blended_ctr: "total_clicks / total_impressions. A ratio of the day's totals — don't average across days.",
+    blended_cpc: "total_ad_spend / total_clicks. A ratio."
   }
 }
 

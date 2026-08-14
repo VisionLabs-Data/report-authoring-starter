@@ -4,7 +4,19 @@ config {
   name: "meta_tracking_audit",
   description: "One row per Meta ad with recent spend: is its destination URL trackable? Flags ads whose clicks can't be attributed because they carry no UTM tags or an unexpanded macro — ranked by the spend that's flying blind. Meta only.",
   tags: ["main", "meta", "tracking"],
-  assertions: { uniqueKey: ["ad_id"] }
+  assertions: {
+    uniqueKey: ["ad_id"],
+    nonNull: ["ad_id", "issue"],
+    rowConditions: ["issue IN ('ok', 'no_utm', 'unexpanded_macro')", "spend_at_risk >= 0"]
+  },
+  columns: {
+    ad_id: "Meta ad id.",
+    campaign_name: "Campaign the ad belongs to.",
+    pipeline_name: "Pipeline the campaign is attributed to.",
+    destination_url: "The ad's landing URL being audited.",
+    spend_at_risk: "Trailing-28-day spend on this ad — how much money the tracking issue affects. Rank desc.",
+    issue: "'ok', 'no_utm' (no UTM tags at all), or 'unexpanded_macro' (a {{…}} left unfilled)."
+  }
 }
 
 -- The point of this table is MONEY AT RISK, not a URL list: an untagged ad only matters in

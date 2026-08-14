@@ -4,7 +4,20 @@ config {
   name: "meta_ad_creatives",
   description: "One row per Meta ad: the creative behind it — headline, body, CTA, destination URL, image, and whether it carries UTM tags. Join to ads_daily_grain on ad_id to put creative next to performance. Meta only (Google has no creative stream here).",
   tags: ["main", "meta", "creative"],
-  assertions: { uniqueKey: ["ad_id"] }
+  assertions: {
+    uniqueKey: ["ad_id"],
+    nonNull: ["ad_id"]
+  },
+  columns: {
+    ad_id: "Meta ad id. Join key to ads_daily_grain.",
+    title: "Headline text.",
+    body: "Primary body / message text.",
+    cta: "Call-to-action button type (e.g. LEARN_MORE, SHOP_NOW).",
+    destination_url: "Landing URL the ad points to, dug out of object_story_spec / asset_feed_spec (link_url is usually NULL).",
+    object_type: "Creative format (e.g. SHARE, VIDEO).",
+    is_tagged: "TRUE if the creative carries a url_tags UTM template. FALSE = untracked (see meta_tracking_audit).",
+    image_url: "Display image; prefers the full image over the 64×64 thumbnail."
+  }
 }
 
 -- Three creative fields lie about themselves, and each fails silently, so handle them explicitly:

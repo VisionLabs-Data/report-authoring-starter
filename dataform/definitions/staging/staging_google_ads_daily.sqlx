@@ -4,9 +4,22 @@ config {
   name: "staging_google_ads_daily",
   description: "One row per Google Ads campaign per day: cost converted from micros, impressions and clicks typed. Google reports at CAMPAIGN grain (no ad/adset), so those columns are null here — that asymmetry is carried through to ads_daily_grain deliberately.",
   tags: ["staging", "google"],
+  bigquery: { partitionBy: "report_date", clusterBy: ["campaign_id"] },
   assertions: {
     uniqueKey: ["report_date", "campaign_id"],
-    nonNull: ["report_date", "campaign_id", "spend"]
+    nonNull: ["report_date", "campaign_id", "spend"],
+    rowConditions: ["spend >= 0", "impressions >= 0", "clicks >= 0"]
+  },
+  columns: {
+    report_date: "Calendar day of the metrics (partition key). From segments_date.",
+    platform: "Constant 'google'.",
+    account_name: "Google Ads customer id (string) — campaign_stats carries no friendly account name.",
+    campaign_id: "Google campaign id. Grain of this table together with report_date.",
+    campaign_name: "Google campaign name — matched to a pipeline downstream.",
+    spend: "Cost, converted from metrics_cost_micros (÷ 1e6). Additive.",
+    impressions: "Impressions. Additive.",
+    clicks: "Clicks. Additive.",
+    link_clicks: "Equals clicks — Google has no separate link-click metric (on search every click is a link click)."
   }
 }
 

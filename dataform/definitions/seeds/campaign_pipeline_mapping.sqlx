@@ -9,6 +9,13 @@ config {
     // double-count below, so make the priority unique per pattern.
     uniqueKey: ["campaign_pattern"],
     nonNull: ["pipeline_name", "pipeline_short_name", "campaign_pattern", "match_priority"]
+  },
+  columns: {
+    pipeline_name: "Business pipeline/funnel name shown in reports.",
+    pipeline_short_name: "Short slug of the pipeline, for compact labels.",
+    campaign_pattern: "Case-insensitive BigQuery regex matched against campaign_name.",
+    match_priority: "Tie-breaker when a name matches several patterns; lower wins. Keep distinct.",
+    is_active: "FALSE retires a mapping without deleting the row."
   }
 }
 

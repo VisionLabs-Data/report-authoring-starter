@@ -9,7 +9,28 @@ config {
   },
   assertions: {
     uniqueKey: ["report_date", "platform", "ad_id"],
-    nonNull: ["report_date", "platform", "ad_id", "pipeline_name"]
+    nonNull: ["report_date", "platform", "ad_id", "pipeline_name"],
+    rowConditions: ["spend >= 0", "ctr IS NULL OR ctr BETWEEN 0 AND 1"]
+  },
+  columns: {
+    report_date: "Calendar day (partition key).",
+    platform: "'meta' or 'google'. Part of the key because a Google campaign stands in as its own ad.",
+    account_name: "Ad account (Meta) or customer id (Google).",
+    campaign_id: "Campaign id.",
+    campaign_name: "Campaign name — the string matched to a pipeline.",
+    adset_id: "Ad set id. NULL for Google (no ad-set grain).",
+    adset_name: "Ad set name. NULL for Google.",
+    ad_id: "Ad id (Meta) or campaign id (Google). Grain with report_date + platform.",
+    ad_name: "Ad name (Meta) or campaign name (Google).",
+    pipeline_name: "Business pipeline/funnel this campaign belongs to; 'Unattributed' when no mapping row matches.",
+    pipeline_short_name: "Short slug of pipeline_name, for compact labels.",
+    spend: "Amount spent. Additive.",
+    impressions: "Impressions. Additive.",
+    clicks: "All clicks. Additive.",
+    link_clicks: "Link clicks. Additive.",
+    lp_views: "Landing-page views. Additive. 0 for Google.",
+    ctr: "clicks / impressions for THIS row. A ratio — recompute from sums, never average the column.",
+    cpc: "spend / clicks for THIS row. A ratio — recompute from sums."
   }
 }
 

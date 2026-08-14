@@ -4,9 +4,27 @@ config {
   name: "staging_meta_ads_daily",
   description: "One row per Meta ad per day: base insight typed and cleaned, with link clicks and landing-page views folded in from the action-type stream. Additive — sum spend/impressions/clicks/link_clicks/lp_views freely.",
   tags: ["staging", "meta"],
+  bigquery: { partitionBy: "report_date", clusterBy: ["campaign_id"] },
   assertions: {
     uniqueKey: ["report_date", "ad_id"],
-    nonNull: ["report_date", "ad_id", "spend"]
+    nonNull: ["report_date", "ad_id", "spend"],
+    rowConditions: ["spend >= 0", "impressions >= 0", "clicks >= 0"]
+  },
+  columns: {
+    report_date: "Calendar day of the metrics (partition key). From date_start.",
+    platform: "Constant 'meta' — lets this union cleanly with the Google table.",
+    account_name: "Meta ad account the ad ran under.",
+    campaign_id: "Meta campaign id (string).",
+    campaign_name: "Meta campaign name — matched to a pipeline downstream.",
+    adset_id: "Meta ad set id (string).",
+    adset_name: "Meta ad set name.",
+    ad_id: "Meta ad id (string). Grain of this table together with report_date.",
+    ad_name: "Meta ad name.",
+    spend: "Amount spent that day, account currency. Additive.",
+    impressions: "Times the ad was shown. Additive.",
+    clicks: "All clicks, any type. Additive.",
+    link_clicks: "Clicks on the ad's link (inline_link_clicks; falls back to the link_click action). Additive.",
+    lp_views: "Landing-page views (landing_page_view action) — someone who actually reached the page. Additive."
   }
 }
 
