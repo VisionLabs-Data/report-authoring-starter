@@ -1,6 +1,6 @@
 config {
   type: "table",
-  name: "daily_summary",
+  name: "main_daily_summary",
   description: "One row per day: whole-account ad performance with Meta and Google split out and a blended total. Reporting-ready. Spend/impressions/clicks are additive; blended_ctr / blended_cpc are ratios of the day's totals — don't average them across days.",
   tags: ["main", "marketing"],
   bigquery: { partitionBy: "summary_date" },
@@ -45,5 +45,5 @@ SELECT
   SUM(link_clicks) AS total_link_clicks,
   SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS blended_ctr,
   SAFE_DIVIDE(SUM(spend),  SUM(clicks))      AS blended_cpc
-FROM ${ref("ads_daily_grain")}
+FROM ${ref("main_ads_daily_grain")}
 GROUP BY summary_date

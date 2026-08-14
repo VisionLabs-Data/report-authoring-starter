@@ -1,21 +1,20 @@
 config {
   type: "table",
-  schema: "main",
-  name: "meta_ad_creatives",
-  description: "One row per Meta ad: the creative behind it — headline, body, CTA, destination URL, image, and whether it carries UTM tags. Join to ads_daily_grain on ad_id to put creative next to performance. Meta only (Google has no creative stream here).",
+  name: "main_meta_ad_creatives",
+  description: "One row per Meta ad: the creative behind it — headline, body, CTA, destination URL, image, and whether it carries UTM tags. Join to main_ads_daily_grain on ad_id to put creative next to performance. Meta only (Google has no creative stream here).",
   tags: ["main", "meta", "creative"],
   assertions: {
     uniqueKey: ["ad_id"],
     nonNull: ["ad_id"]
   },
   columns: {
-    ad_id: "Meta ad id. Join key to ads_daily_grain.",
+    ad_id: "Meta ad id. Join key to main_ads_daily_grain.",
     title: "Headline text.",
     body: "Primary body / message text.",
     cta: "Call-to-action button type (e.g. LEARN_MORE, SHOP_NOW).",
     destination_url: "Landing URL the ad points to, dug out of object_story_spec / asset_feed_spec (link_url is usually NULL).",
     object_type: "Creative format (e.g. SHARE, VIDEO).",
-    is_tagged: "TRUE if the creative carries a url_tags UTM template. FALSE = untracked (see meta_tracking_audit).",
+    is_tagged: "TRUE if the creative carries a url_tags UTM template. FALSE = untracked (see main_meta_tracking_audit).",
     image_url: "Display image; prefers the full image over the 64×64 thumbnail."
   }
 }
@@ -26,12 +25,12 @@ config {
 --   • the display image is spread across image_url / object_story_spec / thumbnail_url; thumbnail is
 --     64×64 and useless, so it goes LAST in the COALESCE, not first.
 --   • url_tags is a UTM *template*; its being NULL is the signal that an ad has no tagging at all —
---     which is a per-ad explanation for a failing tracking step (see meta_tracking_audit).
+--     which is a per-ad explanation for a failing tracking step (see main_meta_tracking_audit).
 WITH ad_creative AS (
   SELECT
     CAST(id AS STRING)              AS ad_id,
     JSON_VALUE(creative, '$.id')    AS creative_id
-  FROM ${ref("ads")}
+  FROM ${ref("raw_meta_ads_ads")}
 )
 SELECT
   a.ad_id,
@@ -50,4 +49,4 @@ SELECT
   c.url_tags IS NOT NULL AS is_tagged,
   COALESCE(c.image_url, c.thumbnail_url) AS image_url
 FROM ad_creative a
-JOIN ${ref("ad_creatives_from_ads")} c ON c.id = a.creative_id
+JOIN ${ref("raw_meta_ads_ad_creatives_from_ads")} c ON c.id = a.creative_id

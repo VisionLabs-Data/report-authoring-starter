@@ -1,6 +1,6 @@
 config {
   type: "table",
-  name: "ads_daily_grain",
+  name: "main_ads_daily_grain",
   description: "Daily ad-grain performance with pipeline attribution. Meta = per ad; Google = per campaign. Reporting-ready — a report can query this directly. spend/impressions/clicks/link_clicks/lp_views are additive; ctr and cpc are ratios of totals, so recompute them at read time, never average the columns.",
   tags: ["main", "marketing"],
   bigquery: {
@@ -53,7 +53,7 @@ WITH unioned AS (
 attributed AS (
   SELECT u.*, m.pipeline_name, m.pipeline_short_name
   FROM unioned u
-  LEFT JOIN ${ref("campaign_pipeline_mapping")} m
+  LEFT JOIN ${ref("main_campaign_pipeline_mapping")} m
     ON m.is_active AND REGEXP_CONTAINS(u.campaign_name, m.campaign_pattern)
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY u.report_date, u.platform, u.ad_id

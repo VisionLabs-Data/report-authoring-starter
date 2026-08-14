@@ -11,11 +11,12 @@ description: >-
 # Dataform pipeline
 
 > **Scaffold:** `dataform/` in this repo is a copy-me template for one client's Dataform repo — a
-> real, runnable ad semantic layer: Meta + Google daily staging → `ads_daily_grain`
-> (pipeline-attributed) + `daily_summary` + `meta_ad_creatives` + `meta_tracking_audit`, plus the
-> `campaign_pipeline_mapping` dimension. `dataform/README.md` has the layer walkthrough and the
-> one-time GCP setup (connect the repo, create the release + workflow configs). Start there, then
-> use this skill for the modelling decisions.
+> real, runnable ad semantic layer, ONE dataset per client (raw_/staging_/main_ prefixes): Meta +
+> Google daily staging → `main_ads_daily_grain` (pipeline-attributed) + `main_daily_summary` +
+> `main_meta_ad_creatives` + `main_meta_tracking_audit`, plus the `main_campaign_pipeline_mapping`
+> dimension. `dataform/README.md` has the layer walkthrough and the one-time GCP setup (connect the
+> repo, create the release + workflow configs). Start there, then use this skill for the modelling
+> decisions.
 
 ## One dataset per client
 

@@ -1,7 +1,6 @@
 config {
   type: "table",
-  schema: "main",
-  name: "meta_tracking_audit",
+  name: "main_meta_tracking_audit",
   description: "One row per Meta ad with recent spend: is its destination URL trackable? Flags ads whose clicks can't be attributed because they carry no UTM tags or an unexpanded macro — ranked by the spend that's flying blind. Meta only.",
   tags: ["main", "meta", "tracking"],
   assertions: {
@@ -34,13 +33,13 @@ WITH tags AS (
       JSON_VALUE(c.object_story_spec, '$.video_data.call_to_action.value.link'),
       JSON_VALUE(c.asset_feed_spec,   '$.link_urls[0].website_url')
     ) AS destination_url
-  FROM ${ref("ads")} a
-  JOIN ${ref("ad_creatives_from_ads")} c ON c.id = JSON_VALUE(a.creative, '$.id')
+  FROM ${ref("raw_meta_ads_ads")} a
+  JOIN ${ref("raw_meta_ads_ad_creatives_from_ads")} c ON c.id = JSON_VALUE(a.creative, '$.id')
 ),
 recent_spend AS (
   SELECT ad_id, ANY_VALUE(campaign_name) AS campaign_name, ANY_VALUE(pipeline_name) AS pipeline_name,
          SUM(spend) AS spend_28d
-  FROM ${ref("ads_daily_grain")}
+  FROM ${ref("main_ads_daily_grain")}
   WHERE platform = 'meta' AND report_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)
   GROUP BY ad_id
 )

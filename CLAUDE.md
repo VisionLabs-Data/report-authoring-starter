@@ -21,9 +21,9 @@ portal.config.json          # portal URL + repo-slug → portal-client bindings
 scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
 dataform/                   # copy-me TEMPLATE for a client's Dataform repo (data modelling): a
-                            #   real ad semantic layer — Meta+Google staging → ads_daily_grain
-                            #   (pipeline-attributed) + daily_summary + creative + tracking audit.
-                            #   See its README + the dataform-pipeline skill. Not run from this repo.
+                            #   real ad semantic layer, ONE dataset per client (raw_/staging_/main_
+                            #   prefixes) — Meta+Google staging → main_ads_daily_grain + main_daily_
+                            #   summary + creative + tracking. README + the dataform-pipeline skill.
 ```
 
 ## Where the data lives

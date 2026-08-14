@@ -2,22 +2,24 @@
 #
 # This `dataform/` folder is a copy-me TEMPLATE for a client's own Dataform repo — it is NOT run
 # from the reports repo. See dataform/README.md for how to stand it up in GCP. The modelling
-# conventions (the raw → staging → main layers) are explained in the `dataform-pipeline` skill.
+# conventions (the raw_/staging_/main_ layers) are explained in the `dataform-pipeline` skill.
 
-# Your agency's GCP project — the same project the client's datasets live in.
+# Your agency's GCP project — the same project every client's dataset lives in.
 defaultProject: your-agency-gcp-project
 
-# Layer = DATASET here (raw / staging / main), the idiomatic Dataform layout and the one the
-# reference client uses. `main` is the default because reports read the reporting layer; staging
-# models set `schema: "staging"` and the raw sources are declared in `schema: "raw"`. (Some older
-# clients instead use ONE dataset with raw_/staging_/main_ table PREFIXES — if that's yours, point
-# defaultDataset at the client's dataset_slug and drop the per-model `schema:` overrides.)
-defaultDataset: main
+# ONE DATASET PER CLIENT. All three layers (raw / staging / main) live in this single dataset,
+# told apart by table PREFIX — not by separate datasets. Set this to the client's `dataset_slug`
+# from the portal, which is set once when the client is created and never changes. The client
+# dataset IS the tenant boundary: an agency's clients share this GCP project, so a layer-named
+# dataset (raw/staging/main) would pool every client's tables together and the portal's
+# dataset-level access control couldn't tell them apart. One dataset per client, always.
+defaultDataset: example_client
 
-# Assertions land in their own dataset so a failed check is easy to find and easy to grant on.
-defaultAssertionDataset: dataform_assertions
+# Assertions land in the SAME dataset as the data, so a failed check sits next to the table it
+# guards (and needs no extra dataset to grant on).
+defaultAssertionDataset: example_client
 
-# Match your BigQuery datasets' location (US, EU, us-east4, …). A mismatch fails at run time.
+# Match your BigQuery dataset's location (US, EU, us-east4, …). A mismatch fails at run time.
 defaultLocation: US
 
 dataformCoreVersion: 3.0.37

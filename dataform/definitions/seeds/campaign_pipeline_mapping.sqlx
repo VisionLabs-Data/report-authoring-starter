@@ -1,7 +1,6 @@
 config {
   type: "table",
-  schema: "main",
-  name: "campaign_pipeline_mapping",
+  name: "main_campaign_pipeline_mapping",
   description: "Dimension: maps a campaign NAME (by regex) to the business pipeline/funnel it belongs to. Agency-maintained — edit the rows below when a new funnel launches. `match_priority` breaks ties when a campaign name matches more than one pattern (lower wins).",
   tags: ["seed", "dimension"],
   assertions: {

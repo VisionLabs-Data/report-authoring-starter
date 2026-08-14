@@ -9,27 +9,34 @@ time) are in the **`dataform-pipeline`** skill — read it first.
 
 ```
 dataform/
-  workflow_settings.yaml                  # project / datasets / location / core version
+  workflow_settings.yaml                  # project / client dataset / location / core version
   definitions/
     sources/raw_sources.js                # declare the Airbyte raw tables (Meta + Google)
     seeds/campaign_pipeline_mapping.sqlx   # dimension: campaign name → pipeline (you maintain this)
     staging/
-      staging_meta_ads_daily.sqlx         # one row per Meta ad per day, typed + cleaned
-      staging_google_ads_daily.sqlx       # one row per Google campaign per day (cost from micros)
+      staging_meta_ads_daily.sqlx         # → staging_meta_ads_daily : one row per Meta ad per day
+      staging_google_ads_daily.sqlx       # → staging_google_ads_daily : one row per Google campaign/day
     main/
-      ads_daily_grain.sqlx                # ⭐ combined Meta+Google, pipeline-attributed, per day
-      daily_summary.sqlx                  # account/day rollup, Meta vs Google split + blended
-      meta_ad_creatives.sqlx              # the creative behind each ad (headline/body/CTA/dest/img)
-      meta_tracking_audit.sqlx            # untagged / macro'd ads, ranked by spend at risk
+      ads_daily_grain.sqlx                # → main_ads_daily_grain ⭐ combined, pipeline-attributed, per day
+      daily_summary.sqlx                  # → main_daily_summary : account/day, Meta vs Google + blended
+      meta_ad_creatives.sqlx              # → main_meta_ad_creatives : the creative behind each ad
+      meta_tracking_audit.sqlx            # → main_meta_tracking_audit : untagged / macro'd ads by spend
 ```
 
-## The layers
+## The layers — ONE dataset per client
 
-| Layer | Dataset | Who writes it |
+All three layers live in the client's **single** dataset (its `dataset_slug` from the portal), told
+apart by table **prefix** — not by separate `raw`/`staging`/`main` datasets. The client dataset is
+the tenant boundary: an agency's clients share one GCP project, so a layer-named dataset would pool
+every client's tables together and the portal's dataset-level access control couldn't tell them
+apart. Set the dataset once in `workflow_settings.yaml` (`defaultDataset`); every model inherits it,
+so no model needs a `schema:` override.
+
+| Layer | Table prefix | Who writes it |
 |---|---|---|
-| Raw | `raw` | **Airbyte** — never model into these, a sync overwrites them |
-| Staging | `staging` | you — typed, cleaned, one concept per table, no cross-concept joins |
-| Main | `main` | you — joined + attributed to a stated grain; reports query these directly |
+| Raw | `raw_<provider>_*` | **Airbyte** — never model into these, a sync overwrites them |
+| Staging | `staging_*` | you — typed, cleaned, one concept per table, no cross-concept joins |
+| Main | `main_*` | you — joined + attributed to a stated grain; reports query these directly |
 
 Every model self-documents: a table `description` with the grain, a **`columns:`** description per
 field (Dataform pushes these into the BigQuery schema, where the reporting agent reads them), and
@@ -45,38 +52,38 @@ The two ad platforms come in as separate raw streams and leave as one attributed
 - **`staging_meta_ads_daily`** / **`staging_google_ads_daily`** — each platform typed to a common
   shape (date, campaign/adset/ad, spend, impressions, clicks, link_clicks, lp_views). Meta reports
   per **ad**; Google per **campaign** — that asymmetry is real and carried through, not hidden.
-- **`ads_daily_grain`** ⭐ — the two unioned and tagged with the **pipeline/funnel** each campaign
-  belongs to, via `campaign_pipeline_mapping`. This is the table most reports read. `ctr`/`cpc` are
+- **`main_ads_daily_grain`** ⭐ — the two unioned and tagged with the **pipeline/funnel** each
+  campaign belongs to, via `main_campaign_pipeline_mapping`. The table most reports read. `ctr`/`cpc` are
   computed here as ratios of the row's totals; higher-level rates are recomputed from sums, never
   averaged.
 - **`daily_summary`** — the whole account per day, Meta and Google in their own columns plus a
   blended total, so a scorecard shows "Meta vs Google spend" from one table.
-- **`meta_ad_creatives`** — the headline/body/CTA/destination/image behind each Meta `ad_id`, so a
-  report can put creative next to performance (join on `ad_id`).
-- **`meta_tracking_audit`** — every Meta ad whose destination can't be attributed (no UTMs, or an
+- **`main_meta_ad_creatives`** — the headline/body/CTA/destination/image behind each Meta `ad_id`,
+  so a report can put creative next to performance (join on `ad_id`).
+- **`main_meta_tracking_audit`** — every Meta ad whose destination can't be attributed (no UTMs, or an
   unexpanded `{{macro}}`), ranked by the last-28-day spend flying blind.
 
 ### Two things baked in that are easy to get wrong
 
 - **Pipeline attribution picks ONE match.** A campaign name can match several patterns in the
   mapping; a naive join then multiplies every metric by the match count — and the wrong total is a
-  clean 2× that looks authoritative. `ads_daily_grain` ranks matches by `match_priority` and keeps
-  one (`QUALIFY ROW_NUMBER() … = 1`). Keep the priorities distinct.
+  clean 2× that looks authoritative. `main_ads_daily_grain` ranks matches by `match_priority` and
+  keeps one (`QUALIFY ROW_NUMBER() … = 1`). Keep the priorities distinct.
 - **A new funnel not showing up** is almost always a missing/too-narrow row in
-  `campaign_pipeline_mapping` — it's a hand-maintained seed. Add a row when a funnel launches;
+  `main_campaign_pipeline_mapping` — it's a hand-maintained seed. Add a row when a funnel launches;
   unmatched spend lands in a visible `Unattributed` bucket, not a silent NULL.
 
 ## Stand it up (once per client)
 
 1. **Make it the client's own repo.** Copy this `dataform/` folder to the ROOT of a new git repo so
    `workflow_settings.yaml` sits at the repo root.
-2. **Point it at the project + datasets.** In `workflow_settings.yaml` set `defaultProject` to your
-   agency GCP project and `defaultLocation` to your datasets' region. The layer datasets are `raw` /
-   `staging` / `main` (create them, or repoint — see the comment in the file if this client uses one
-   dataset with table prefixes instead).
+2. **Point it at the project + dataset.** In `workflow_settings.yaml` set `defaultProject` to your
+   agency GCP project, `defaultDataset` to this client's `dataset_slug` (one dataset — create it if
+   it doesn't exist), and `defaultLocation` to its region.
 3. **Wire the real sources.** Edit `definitions/sources/raw_sources.js` so the declared names match
-   this client's actual Airbyte tables (confirm with `get_client_schema` / the BigQuery console —
-   connector versions and prefixes vary), then sanity-check the column names the staging models
+   this client's actual Airbyte tables — they land in the same client dataset with a
+   `raw_<provider>_` prefix, but the exact stream prefix and connector version vary, so confirm with
+   `get_client_schema` / the BigQuery console — then sanity-check the column names the staging models
    read. The examples target the Meta `facebook-marketing` and `google-ads` connectors.
 4. **Fill in the mapping.** Replace the example rows in `seeds/campaign_pipeline_mapping.sqlx` with
    this client's funnels.

@@ -1,6 +1,5 @@
 config {
   type: "table",
-  schema: "staging",
   name: "staging_meta_ads_daily",
   description: "One row per Meta ad per day: base insight typed and cleaned, with link clicks and landing-page views folded in from the action-type stream. Additive — sum spend/impressions/clicks/link_clicks/lp_views freely.",
   tags: ["staging", "meta"],
@@ -38,7 +37,7 @@ WITH actions AS (
     CAST(ad_id AS STRING)                                                         AS ad_id,
     SUM(IF(action_type = 'link_click',         SAFE_CAST(value AS INT64), 0))     AS link_clicks,
     SUM(IF(action_type = 'landing_page_view',  SAFE_CAST(value AS INT64), 0))     AS lp_views
-  FROM ${ref("ads_insights_action_type")}
+  FROM ${ref("raw_meta_ads_ads_insights_action_type")}
   GROUP BY report_date, ad_id
 )
 SELECT
@@ -57,5 +56,5 @@ SELECT
   -- Prefer the base column; fall back to the action-type total where the connector omits it.
   COALESCE(SAFE_CAST(i.inline_link_clicks AS INT64), a.link_clicks, 0) AS link_clicks,
   COALESCE(a.lp_views, 0)               AS lp_views
-FROM ${ref("ads_insights")} i
+FROM ${ref("raw_meta_ads_ads_insights")} i
 LEFT JOIN actions a USING (report_date, ad_id)

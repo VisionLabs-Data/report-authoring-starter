@@ -1,6 +1,5 @@
 config {
   type: "table",
-  schema: "staging",
   name: "staging_google_ads_daily",
   description: "One row per Google Ads campaign per day: cost converted from micros, impressions and clicks typed. Google reports at CAMPAIGN grain (no ad/adset), so those columns are null here — that asymmetry is carried through to ads_daily_grain deliberately.",
   tags: ["staging", "google"],
@@ -37,4 +36,4 @@ SELECT
   SAFE_CAST(metrics_clicks AS INT64)               AS clicks,
   -- Google has no separate "link click"; on search every click is a link click.
   SAFE_CAST(metrics_clicks AS INT64)               AS link_clicks
-FROM ${ref("campaign_stats")}
+FROM ${ref("raw_google_ads_campaign_stats")}
