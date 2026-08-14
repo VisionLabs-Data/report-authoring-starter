@@ -1,0 +1,40 @@
+config {
+  type: "table",
+  schema: "main",
+  name: "meta_ad_creatives",
+  description: "One row per Meta ad: the creative behind it — headline, body, CTA, destination URL, image, and whether it carries UTM tags. Join to ads_daily_grain on ad_id to put creative next to performance. Meta only (Google has no creative stream here).",
+  tags: ["main", "meta", "creative"],
+  assertions: { uniqueKey: ["ad_id"] }
+}
+
+-- Three creative fields lie about themselves, and each fails silently, so handle them explicitly:
+--   • the destination is NOT in link_url (that's usually NULL) — it's in object_story_spec JSON, in
+--     a different place per ad format, so COALESCE the known paths.
+--   • the display image is spread across image_url / object_story_spec / thumbnail_url; thumbnail is
+--     64×64 and useless, so it goes LAST in the COALESCE, not first.
+--   • url_tags is a UTM *template*; its being NULL is the signal that an ad has no tagging at all —
+--     which is a per-ad explanation for a failing tracking step (see meta_tracking_audit).
+WITH ad_creative AS (
+  SELECT
+    CAST(id AS STRING)              AS ad_id,
+    JSON_VALUE(creative, '$.id')    AS creative_id
+  FROM ${ref("ads")}
+)
+SELECT
+  a.ad_id,
+  c.title,
+  c.body,
+  COALESCE(
+    JSON_VALUE(c.object_story_spec, '$.link_data.call_to_action.type'),
+    JSON_VALUE(c.object_story_spec, '$.video_data.call_to_action.type')
+  ) AS cta,
+  COALESCE(
+    JSON_VALUE(c.object_story_spec, '$.link_data.link'),
+    JSON_VALUE(c.object_story_spec, '$.video_data.call_to_action.value.link'),
+    JSON_VALUE(c.asset_feed_spec,   '$.link_urls[0].website_url')
+  ) AS destination_url,
+  c.object_type,
+  c.url_tags IS NOT NULL AS is_tagged,
+  COALESCE(c.image_url, c.thumbnail_url) AS image_url
+FROM ad_creative a
+JOIN ${ref("ad_creatives_from_ads")} c ON c.id = a.creative_id

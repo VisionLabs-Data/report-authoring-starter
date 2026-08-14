@@ -20,9 +20,10 @@ clients/{slug}/
 portal.config.json          # portal URL + repo-slug → portal-client bindings
 scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
-dataform/                   # copy-me TEMPLATE for a client's Dataform repo (data modelling —
-                            #   workflow_settings.yaml + staging_/main_ examples). See its
-                            #   README + the dataform-pipeline skill. Not run from this repo.
+dataform/                   # copy-me TEMPLATE for a client's Dataform repo (data modelling): a
+                            #   real ad semantic layer — Meta+Google staging → ads_daily_grain
+                            #   (pipeline-attributed) + daily_summary + creative + tracking audit.
+                            #   See its README + the dataform-pipeline skill. Not run from this repo.
 ```
 
 ## Where the data lives

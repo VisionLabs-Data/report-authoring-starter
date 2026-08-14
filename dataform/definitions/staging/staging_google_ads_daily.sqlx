@@ -1,0 +1,27 @@
+config {
+  type: "table",
+  schema: "staging",
+  name: "staging_google_ads_daily",
+  description: "One row per Google Ads campaign per day: cost converted from micros, impressions and clicks typed. Google reports at CAMPAIGN grain (no ad/adset), so those columns are null here — that asymmetry is carried through to ads_daily_grain deliberately.",
+  tags: ["staging", "google"],
+  assertions: {
+    uniqueKey: ["report_date", "campaign_id"],
+    nonNull: ["report_date", "campaign_id", "spend"]
+  }
+}
+
+-- Google's cost is in MICROS (millionths) — divide by 1e6 or every spend reads 1,000,000× high.
+-- The connector delivers campaign-grain rows; there is no ad_id/adset_id to carry, so the combined
+-- grain treats a Google campaign as its own "ad" row (Meta = per ad, Google = per campaign).
+SELECT
+  DATE(segments_date)                              AS report_date,
+  'google'                                         AS platform,
+  CAST(customer_id AS STRING)                      AS account_name,
+  CAST(campaign_id AS STRING)                       AS campaign_id,
+  campaign_name,
+  SAFE_CAST(metrics_cost_micros AS FLOAT64) / 1e6  AS spend,
+  SAFE_CAST(metrics_impressions AS INT64)          AS impressions,
+  SAFE_CAST(metrics_clicks AS INT64)               AS clicks,
+  -- Google has no separate "link click"; on search every click is a link click.
+  SAFE_CAST(metrics_clicks AS INT64)               AS link_clicks
+FROM ${ref("campaign_stats")}

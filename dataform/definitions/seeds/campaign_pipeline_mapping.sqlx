@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  schema: "main",
+  name: "campaign_pipeline_mapping",
+  description: "Dimension: maps a campaign NAME (by regex) to the business pipeline/funnel it belongs to. Agency-maintained — edit the rows below when a new funnel launches. `match_priority` breaks ties when a campaign name matches more than one pattern (lower wins).",
+  tags: ["seed", "dimension"],
+  assertions: {
+    // Two rows with the same priority for overlapping patterns is exactly what causes the
+    // double-count below, so make the priority unique per pattern.
+    uniqueKey: ["campaign_pattern"],
+    nonNull: ["pipeline_name", "pipeline_short_name", "campaign_pattern", "match_priority"]
+  }
+}
+
+-- A seed table you HAND-MAINTAIN. Add a row per funnel; `campaign_pattern` is a BigQuery regex
+-- matched against campaign_name (case-insensitive — see ads_daily_grain). Keep priorities distinct
+-- so the "pick one match" rule downstream is deterministic. New funnel not showing up in reports?
+-- 90% of the time a row is missing or its pattern is too narrow — start here.
+SELECT * FROM UNNEST([
+  STRUCT('Emerald Laser'      AS pipeline_name, 'emerald'   AS pipeline_short_name, r'(?i)emerald'         AS campaign_pattern, 10 AS match_priority, TRUE AS is_active),
+  STRUCT('Weight Loss'        AS pipeline_name, 'weightloss' AS pipeline_short_name, r'(?i)weight ?loss|glp' AS campaign_pattern, 20 AS match_priority, TRUE AS is_active),
+  STRUCT('Hormone Therapy'    AS pipeline_name, 'hormone'   AS pipeline_short_name, r'(?i)hormone|hrt|trt'  AS campaign_pattern, 30 AS match_priority, TRUE AS is_active)
+])
