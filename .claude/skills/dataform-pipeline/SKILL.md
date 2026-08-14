@@ -10,6 +10,11 @@ description: >-
 
 # Dataform pipeline
 
+> **Scaffold:** `dataform/` in this repo is a copy-me template for one client's Dataform repo —
+> `workflow_settings.yaml` plus example `staging_`/`main_` models and raw-source declarations.
+> `dataform/README.md` has the one-time GCP setup (connect the repo, create the release +
+> workflow configs). Start there, then use this skill for the modelling decisions.
+
 ## One dataset per client
 
 Every client gets exactly one BigQuery dataset, named after the client, in your agency's GCP
@@ -101,7 +106,9 @@ default.
 
 What the platform needs from your repo: a **workflowConfig** with a **releaseConfig** for it to
 compile from. Without one, every run fails at the Dataform step — that's the single most common
-setup mistake. `/admin/pipeline` shows a client's scope, schedule, and last run.
+setup mistake. Create both in the Dataform repository (GCP console): a **release config** on
+`main`, then a **workflow config** that references it with its schedule left off — `dataform/README.md`
+has the click-by-click. `/admin/pipeline` shows a client's scope, schedule, and last run.
 
 **A brand-new client with no Dataform repo yet is fine.** Orchestration runs the syncs and
 reports that there's nothing to model; add the repo when you're ready and it starts running.
