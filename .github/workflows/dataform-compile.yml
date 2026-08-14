@@ -1,0 +1,36 @@
+name: Dataform compile
+
+# Compile the dataform/ template so a broken model — a bad ${ref()}, a config typo,
+# a renamed table — fails HERE, not the first time an agency copies this folder into
+# a client's repo and wires it into the portal.
+#
+# Compilation is OFFLINE: it resolves the refs and checks the config/SQL templating
+# WITHOUT touching BigQuery, so it needs no credentials and stays green whether or
+# not the client's data has landed yet (declared raw tables aren't checked for
+# existence at compile time). That's why this job has no secrets.
+
+on:
+  pull_request:
+    paths: ["dataform/**"]
+  push:
+    branches: [main]
+    paths: ["dataform/**"]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dataform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Compile with the SAME core version the repo declares, so CI can't go green on
+      # a version the portal won't actually run.
+      - name: Compile
+        run: |
+          VER=$(grep -E '^dataformCoreVersion:' workflow_settings.yaml | awk '{print $2}')
+          echo "Compiling with @dataform/cli@$VER"
+          npx -y @dataform/cli@"$VER" compile
