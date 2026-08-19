@@ -35,11 +35,13 @@ on:
         description: "Client slug to sync (blank = all clients)"
         required: false
         type: string
+  # Dataform is excluded on purpose: clients/*/dataform/** ships via dataform-sync.sh and the
+  # dataform/<slug> branches, not via the portal — a model edit is not a report change.
   pull_request:
-    paths: ["clients/**", "scripts/**"]
+    paths: ["clients/**", "scripts/**", "!clients/*/dataform/**", "!scripts/dataform-*"]
   push:
     branches: [main]
-    paths: ["clients/**", "scripts/**"]
+    paths: ["clients/**", "scripts/**", "!clients/*/dataform/**", "!scripts/dataform-*"]
 
 jobs:
   draft:

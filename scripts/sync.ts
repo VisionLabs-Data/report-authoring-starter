@@ -80,6 +80,20 @@ async function main() {
   const portalCfg = JSON.parse(await readFile(join(ROOT, "portal.config.json"), "utf-8")) as PortalConfig;
   const apiKey = process.env[portalCfg.apiKeyEnv || "REPORTING_SUITE_API_KEY"];
   if (!apiKey) {
+    // No key + no real client bindings = the template repo itself (or a fresh copy before
+    // setup), where CI has no secret and there is nothing to sync anyway — exit 0 so the
+    // starter's own pushes stay green. The moment ONE real binding exists this is a real
+    // misconfiguration and must fail loudly: an agency that forgot the secret would otherwise
+    // merge "successful" runs that shipped nothing.
+    const anyReal = Object.values(portalCfg.clients ?? {}).some(
+      (b) => b?.portalClientId && !b.portalClientId.startsWith("REPLACE-"),
+    );
+    if (!anyReal) {
+      console.log(
+        `No ${portalCfg.apiKeyEnv || "REPORTING_SUITE_API_KEY"} and no client is bound in portal.config.json — nothing to sync (template state). Set the secret + a real portalClientId to arm syncing.`,
+      );
+      process.exit(0);
+    }
     console.error(`Missing ${portalCfg.apiKeyEnv || "REPORTING_SUITE_API_KEY"} — set it in .env (agency API key with reports:write).`);
     process.exit(1);
   }

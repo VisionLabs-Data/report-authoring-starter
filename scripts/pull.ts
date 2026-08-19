@@ -64,6 +64,18 @@ async function main() {
   const config: PortalConfig = JSON.parse(await readFile(join(ROOT, "portal.config.json"), "utf-8"));
   const apiKey = process.env[config.apiKeyEnv || "REPORTING_SUITE_API_KEY"];
   if (!apiKey) {
+    // Same template-state rule as sync.ts: no key AND no real binding → nothing could have
+    // been edited in a Studio we can't reach, so --check has nothing to guard. Exit 0 to keep
+    // the starter repo's own CI green; one real binding makes a missing key a loud failure.
+    const anyReal = Object.values(config.clients ?? {}).some(
+      (b) => b?.portalClientId && !b.portalClientId.startsWith("REPLACE-"),
+    );
+    if (!anyReal) {
+      console.log(
+        `No ${config.apiKeyEnv || "REPORTING_SUITE_API_KEY"} and no client is bound in portal.config.json — nothing to pull (template state).`,
+      );
+      process.exit(0);
+    }
     console.error(`Missing ${config.apiKeyEnv || "REPORTING_SUITE_API_KEY"} — see .env.example.`);
     process.exit(1);
   }
