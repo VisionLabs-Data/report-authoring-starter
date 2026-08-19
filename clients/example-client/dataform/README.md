@@ -108,7 +108,36 @@ The two ad platforms come in as separate raw streams and leave as one attributed
    this creates and pushes the `dataform/<slug>` branch GCP will read.
 6. **Connect it in GCP.** BigQuery → **Dataform** → Create repository → link **this** git repo,
    with **default branch `dataform/<slug>`**. One Dataform repository per client, all pointing at
-   the same agency repo on different branches.
+   the same agency repo on different branches. (The GitHub token it asks for: see **Auth** below.)
+
+## Auth — who is who
+
+Nothing here authenticates with `gcloud` at run time. Three identities, each with one job — and
+only the first is created per client; the other two are one-time, agency-project-wide:
+
+1. **The portal acting on the client.** A service account **you create** in the agency GCP
+   project. Grant it `roles/bigquery.jobUser`, read on the client's dataset, and
+   `roles/dataform.editor`; download a JSON key and upload it on the client's **BigQuery
+   integration card** in the portal admin. That one stored key is how the portal both runs the
+   client's queries and invokes this pipeline's workflow config — the portal picks a credential
+   by matching the key's `project_id` to the Dataform repo's project, so a key from a different
+   project silently isn't eligible.
+
+2. **Dataform reading GitHub.** GCP pulls the `dataform/<slug>` branch with a GitHub token, not a
+   Google identity: create a fine-grained PAT (read-only **Contents** on this repo), store it as
+   a **Secret Manager** secret in the agency project, reference that secret when linking each
+   client's Dataform repository, and grant the Dataform **service agent** access to read it
+   (`secretmanager.secretAccessor`). ONE token serves every client's repository — they all read
+   the same repo.
+
+3. **Dataform executing SQL.** Workflow runs execute as the project's built-in Dataform service
+   agent (`service-<project_number>@gcp-sa-dataform.iam.gserviceaccount.com`), which exists as
+   soon as the Dataform API is enabled. Grant it `roles/bigquery.jobUser` +
+   `roles/bigquery.dataEditor` **once, project-level**, and every client's pipeline can build
+   into its own dataset. **Do not set a service account on the repository itself** in this
+   layout — that override exists for the cross-project case (repo in your project, raw data in
+   the client's own project), and it drags in impersonation grants you don't otherwise need.
+   With everything in one agency project, the default agent + one grant is the whole story.
 
 ## The bit everyone misses: a **release config** AND a **workflow config**
 
