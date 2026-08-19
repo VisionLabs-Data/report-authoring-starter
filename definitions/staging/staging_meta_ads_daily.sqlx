@@ -1,0 +1,60 @@
+config {
+  type: "table",
+  name: "staging_meta_ads_daily",
+  description: "One row per Meta ad per day: base insight typed and cleaned, with link clicks and landing-page views folded in from the action-type stream. Additive — sum spend/impressions/clicks/link_clicks/lp_views freely.",
+  tags: ["staging", "meta"],
+  bigquery: { partitionBy: "report_date", clusterBy: ["campaign_id"] },
+  assertions: {
+    uniqueKey: ["report_date", "ad_id"],
+    nonNull: ["report_date", "ad_id", "spend"],
+    rowConditions: ["spend >= 0", "impressions >= 0", "clicks >= 0"]
+  },
+  columns: {
+    report_date: "Calendar day of the metrics (partition key). From date_start.",
+    platform: "Constant 'meta' — lets this union cleanly with the Google table.",
+    account_name: "Meta ad account the ad ran under.",
+    campaign_id: "Meta campaign id (string).",
+    campaign_name: "Meta campaign name — matched to a pipeline downstream.",
+    adset_id: "Meta ad set id (string).",
+    adset_name: "Meta ad set name.",
+    ad_id: "Meta ad id (string). Grain of this table together with report_date.",
+    ad_name: "Meta ad name.",
+    spend: "Amount spent that day, account currency. Additive.",
+    impressions: "Times the ad was shown. Additive.",
+    clicks: "All clicks, any type. Additive.",
+    link_clicks: "Clicks on the ad's link (inline_link_clicks; falls back to the link_click action). Additive.",
+    lp_views: "Landing-page views (landing_page_view action) — someone who actually reached the page. Additive."
+  }
+}
+
+-- Meta's landing_page_view and link_click live in the ACTION-TYPE stream, where spend repeats on
+-- every action row — so aggregate that stream on its own (one value per ad/day) and JOIN it to the
+-- base insight, rather than reading spend from it. Airbyte types numerics loosely; SAFE_CAST every
+-- measure so one bad string doesn't fail the whole build.
+WITH actions AS (
+  SELECT
+    DATE(date_start)                                                              AS report_date,
+    CAST(ad_id AS STRING)                                                         AS ad_id,
+    SUM(IF(action_type = 'link_click',         SAFE_CAST(value AS INT64), 0))     AS link_clicks,
+    SUM(IF(action_type = 'landing_page_view',  SAFE_CAST(value AS INT64), 0))     AS lp_views
+  FROM ${ref("raw_meta_ads_ads_insights_action_type")}
+  GROUP BY report_date, ad_id
+)
+SELECT
+  DATE(i.date_start)                    AS report_date,
+  'meta'                                AS platform,
+  i.account_name,
+  CAST(i.campaign_id AS STRING)         AS campaign_id,
+  i.campaign_name,
+  CAST(i.adset_id AS STRING)            AS adset_id,
+  i.adset_name,
+  CAST(i.ad_id AS STRING)               AS ad_id,
+  i.ad_name,
+  SAFE_CAST(i.spend AS FLOAT64)         AS spend,
+  SAFE_CAST(i.impressions AS INT64)     AS impressions,
+  SAFE_CAST(i.clicks AS INT64)          AS clicks,
+  -- Prefer the base column; fall back to the action-type total where the connector omits it.
+  COALESCE(SAFE_CAST(i.inline_link_clicks AS INT64), a.link_clicks, 0) AS link_clicks,
+  COALESCE(a.lp_views, 0)               AS lp_views
+FROM ${ref("raw_meta_ads_ads_insights")} i
+LEFT JOIN actions a USING (report_date, ad_id)

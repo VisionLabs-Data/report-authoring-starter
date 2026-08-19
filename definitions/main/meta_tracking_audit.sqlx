@@ -1,0 +1,58 @@
+config {
+  type: "table",
+  name: "main_meta_tracking_audit",
+  description: "One row per Meta ad with recent spend: is its destination URL trackable? Flags ads whose clicks can't be attributed because they carry no UTM tags or an unexpanded macro — ranked by the spend that's flying blind. Meta only.",
+  tags: ["main", "meta", "tracking"],
+  assertions: {
+    uniqueKey: ["ad_id"],
+    nonNull: ["ad_id", "issue"],
+    rowConditions: ["issue IN ('ok', 'no_utm', 'unexpanded_macro')", "spend_at_risk >= 0"]
+  },
+  columns: {
+    ad_id: "Meta ad id.",
+    campaign_name: "Campaign the ad belongs to.",
+    pipeline_name: "Pipeline the campaign is attributed to.",
+    destination_url: "The ad's landing URL being audited.",
+    spend_at_risk: "Trailing-28-day spend on this ad — how much money the tracking issue affects. Rank desc.",
+    issue: "'ok', 'no_utm' (no UTM tags at all), or 'unexpanded_macro' (a {{…}} left unfilled)."
+  }
+}
+
+-- The point of this table is MONEY AT RISK, not a URL list: an untagged ad only matters in
+-- proportion to the spend whose conversions you then can't credit. So we join each ad's raw tagging
+-- to its trailing-28-day spend and rank by that. Buckets mirror the funnel tracking audit:
+--   no_utm          — no url_tags AND no utm_ in the destination → clicks land untagged
+--   unexpanded_macro— url_tags still contains a {{…}} macro that never got filled in
+--   ok              — has utm tagging and no leftover macro
+WITH tags AS (
+  SELECT
+    CAST(a.id AS STRING) AS ad_id,
+    c.url_tags,
+    COALESCE(
+      JSON_VALUE(c.object_story_spec, '$.link_data.link'),
+      JSON_VALUE(c.object_story_spec, '$.video_data.call_to_action.value.link'),
+      JSON_VALUE(c.asset_feed_spec,   '$.link_urls[0].website_url')
+    ) AS destination_url
+  FROM ${ref("raw_meta_ads_ads")} a
+  JOIN ${ref("raw_meta_ads_ad_creatives_from_ads")} c ON c.id = JSON_VALUE(a.creative, '$.id')
+),
+recent_spend AS (
+  SELECT ad_id, ANY_VALUE(campaign_name) AS campaign_name, ANY_VALUE(pipeline_name) AS pipeline_name,
+         SUM(spend) AS spend_28d
+  FROM ${ref("main_ads_daily_grain")}
+  WHERE platform = 'meta' AND report_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)
+  GROUP BY ad_id
+)
+SELECT
+  s.ad_id,
+  s.campaign_name,
+  s.pipeline_name,
+  t.destination_url,
+  s.spend_28d AS spend_at_risk,
+  CASE
+    WHEN t.url_tags LIKE '%{{%'                                                      THEN 'unexpanded_macro'
+    WHEN t.url_tags IS NULL AND (t.destination_url IS NULL OR t.destination_url NOT LIKE '%utm_%') THEN 'no_utm'
+    ELSE 'ok'
+  END AS issue
+FROM recent_spend s
+LEFT JOIN tags t USING (ad_id)

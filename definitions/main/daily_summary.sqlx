@@ -1,0 +1,49 @@
+config {
+  type: "table",
+  name: "main_daily_summary",
+  description: "One row per day: whole-account ad performance with Meta and Google split out and a blended total. Reporting-ready. Spend/impressions/clicks are additive; blended_ctr / blended_cpc are ratios of the day's totals — don't average them across days.",
+  tags: ["main", "marketing"],
+  bigquery: { partitionBy: "summary_date" },
+  assertions: {
+    uniqueKey: ["summary_date"],
+    nonNull: ["summary_date"],
+    rowConditions: ["total_ad_spend >= 0", "blended_ctr IS NULL OR blended_ctr BETWEEN 0 AND 1"]
+  },
+  columns: {
+    summary_date: "The day (partition key). One row per day.",
+    meta_ad_spend: "Total Meta spend that day.",
+    meta_impressions: "Total Meta impressions.",
+    meta_clicks: "Total Meta clicks.",
+    meta_link_clicks: "Total Meta link clicks.",
+    google_ad_spend: "Total Google spend that day.",
+    google_impressions: "Total Google impressions.",
+    google_clicks: "Total Google clicks.",
+    total_ad_spend: "Meta + Google spend.",
+    total_impressions: "Meta + Google impressions.",
+    total_clicks: "Meta + Google clicks.",
+    total_link_clicks: "Meta + Google link clicks.",
+    blended_ctr: "total_clicks / total_impressions. A ratio of the day's totals — don't average across days.",
+    blended_cpc: "total_ad_spend / total_clicks. A ratio."
+  }
+}
+
+-- Roll the ad grain up to the account/day. Keeping platform totals in their OWN columns (rather than
+-- one long table) is what lets a scorecard show "Meta vs Google spend" without a second query — it
+-- mirrors main.daily_summary in the reference client.
+SELECT
+  report_date AS summary_date,
+  SUM(IF(platform = 'meta',   spend,       0)) AS meta_ad_spend,
+  SUM(IF(platform = 'meta',   impressions, 0)) AS meta_impressions,
+  SUM(IF(platform = 'meta',   clicks,      0)) AS meta_clicks,
+  SUM(IF(platform = 'meta',   link_clicks, 0)) AS meta_link_clicks,
+  SUM(IF(platform = 'google', spend,       0)) AS google_ad_spend,
+  SUM(IF(platform = 'google', impressions, 0)) AS google_impressions,
+  SUM(IF(platform = 'google', clicks,      0)) AS google_clicks,
+  SUM(spend)       AS total_ad_spend,
+  SUM(impressions) AS total_impressions,
+  SUM(clicks)      AS total_clicks,
+  SUM(link_clicks) AS total_link_clicks,
+  SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS blended_ctr,
+  SAFE_DIVIDE(SUM(spend),  SUM(clicks))      AS blended_cpc
+FROM ${ref("main_ads_daily_grain")}
+GROUP BY summary_date

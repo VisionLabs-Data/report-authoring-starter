@@ -1,0 +1,29 @@
+# Dataform Core settings for ONE client's data pipeline.
+#
+# Every client's Dataform lives in THIS repo at clients/<slug>/dataform/ — this folder is the
+# template you copy for a new client. You edit here on main; `npm run dataform:sync -- <slug>`
+# publishes the folder to the client's `dataform/<slug>` branch, which is what the client's GCP
+# Dataform repository is linked to (GCP requires this file at the repo ROOT, so each client gets
+# a generated branch instead of a separate repo). Never edit that branch directly. See
+# dataform/README.md for the GCP setup; the modelling conventions (the raw_/staging_/main_
+# layers) are explained in the `dataform-pipeline` skill.
+
+# Your agency's GCP project — the same project every client's dataset lives in.
+defaultProject: your-agency-gcp-project
+
+# ONE DATASET PER CLIENT. All three layers (raw / staging / main) live in this single dataset,
+# told apart by table PREFIX — not by separate datasets. Set this to the client's `dataset_slug`
+# from the portal, which is set once when the client is created and never changes. The client
+# dataset IS the tenant boundary: an agency's clients share this GCP project, so a layer-named
+# dataset (raw/staging/main) would pool every client's tables together and the portal's
+# dataset-level access control couldn't tell them apart. One dataset per client, always.
+defaultDataset: example_client
+
+# Assertions land in the SAME dataset as the data, so a failed check sits next to the table it
+# guards (and needs no extra dataset to grant on).
+defaultAssertionDataset: example_client
+
+# Match your BigQuery dataset's location (US, EU, us-east4, …). A mismatch fails at run time.
+defaultLocation: US
+
+dataformCoreVersion: 3.0.37

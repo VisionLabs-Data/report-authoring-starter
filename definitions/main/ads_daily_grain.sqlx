@@ -1,0 +1,73 @@
+config {
+  type: "table",
+  name: "main_ads_daily_grain",
+  description: "Daily ad-grain performance with pipeline attribution. Meta = per ad; Google = per campaign. Reporting-ready — a report can query this directly. spend/impressions/clicks/link_clicks/lp_views are additive; ctr and cpc are ratios of totals, so recompute them at read time, never average the columns.",
+  tags: ["main", "marketing"],
+  bigquery: {
+    partitionBy: "report_date",
+    clusterBy: ["pipeline_name", "platform"]
+  },
+  assertions: {
+    uniqueKey: ["report_date", "platform", "ad_id"],
+    nonNull: ["report_date", "platform", "ad_id", "pipeline_name"],
+    rowConditions: ["spend >= 0", "ctr IS NULL OR ctr BETWEEN 0 AND 1"]
+  },
+  columns: {
+    report_date: "Calendar day (partition key).",
+    platform: "'meta' or 'google'. Part of the key because a Google campaign stands in as its own ad.",
+    account_name: "Ad account (Meta) or customer id (Google).",
+    campaign_id: "Campaign id.",
+    campaign_name: "Campaign name — the string matched to a pipeline.",
+    adset_id: "Ad set id. NULL for Google (no ad-set grain).",
+    adset_name: "Ad set name. NULL for Google.",
+    ad_id: "Ad id (Meta) or campaign id (Google). Grain with report_date + platform.",
+    ad_name: "Ad name (Meta) or campaign name (Google).",
+    pipeline_name: "Business pipeline/funnel this campaign belongs to; 'Unattributed' when no mapping row matches.",
+    pipeline_short_name: "Short slug of pipeline_name, for compact labels.",
+    spend: "Amount spent. Additive.",
+    impressions: "Impressions. Additive.",
+    clicks: "All clicks. Additive.",
+    link_clicks: "Link clicks. Additive.",
+    lp_views: "Landing-page views. Additive. 0 for Google.",
+    ctr: "clicks / impressions for THIS row. A ratio — recompute from sums, never average the column.",
+    cpc: "spend / clicks for THIS row. A ratio — recompute from sums."
+  }
+}
+
+-- Union the two platforms to one shape, then attach the pipeline. Google has no ad/adset grain, so
+-- its campaign stands in as the "ad" (ad_id := campaign_id) — that's why the key includes platform.
+WITH unioned AS (
+  SELECT report_date, platform, account_name, campaign_id, campaign_name,
+         adset_id, adset_name, ad_id, ad_name, spend, impressions, clicks, link_clicks, lp_views
+  FROM ${ref("staging_meta_ads_daily")}
+  UNION ALL
+  SELECT report_date, platform, account_name, campaign_id, campaign_name,
+         CAST(NULL AS STRING) AS adset_id, CAST(NULL AS STRING) AS adset_name,
+         campaign_id AS ad_id, campaign_name AS ad_name,
+         spend, impressions, clicks, link_clicks, 0 AS lp_views
+  FROM ${ref("staging_google_ads_daily")}
+),
+-- A campaign name can match SEVERAL patterns in the mapping (e.g. a name containing both "Emerald"
+-- and "Trial"). Joining naively then multiplies every metric by the number of matches — and the
+-- wrong total is a clean 2× that looks authoritative. So rank the matches by priority and keep ONE.
+attributed AS (
+  SELECT u.*, m.pipeline_name, m.pipeline_short_name
+  FROM unioned u
+  LEFT JOIN ${ref("main_campaign_pipeline_mapping")} m
+    ON m.is_active AND REGEXP_CONTAINS(u.campaign_name, m.campaign_pattern)
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY u.report_date, u.platform, u.ad_id
+    ORDER BY m.match_priority ASC
+  ) = 1
+)
+SELECT
+  report_date, platform, account_name, campaign_id, campaign_name,
+  adset_id, adset_name, ad_id, ad_name,
+  -- Unmatched campaigns fall into a visible bucket rather than NULL, so "unattributed" is a number
+  -- someone can see and fix in the mapping, not a silent gap.
+  COALESCE(pipeline_name, 'Unattributed')        AS pipeline_name,
+  COALESCE(pipeline_short_name, 'unattributed')  AS pipeline_short_name,
+  spend, impressions, clicks, link_clicks, lp_views,
+  SAFE_DIVIDE(clicks, impressions) AS ctr,
+  SAFE_DIVIDE(spend, clicks)       AS cpc
+FROM attributed
