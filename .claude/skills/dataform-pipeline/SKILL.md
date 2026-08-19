@@ -16,9 +16,13 @@ description: >-
 > `main_ads_daily_grain` (pipeline-attributed) + `main_daily_summary` + `main_meta_ad_creatives` +
 > `main_meta_tracking_audit`, plus the `main_campaign_pipeline_mapping` dimension. Edit on `main`,
 > then `npm run dataform:sync -- <slug>` publishes the folder to the `dataform/<slug>` branch GCP
-> reads — never edit that branch directly. The client dataform README has the layer walkthrough
-> and the one-time GCP setup (link this repo at branch `dataform/<slug>`, create the release +
-> workflow configs). Start there, then use this skill for the modelling decisions.
+> reads — never edit that branch directly. GCP setup is scripted: `scripts/dataform-gcp-setup.sh
+> <project>` once per agency (APIs, service agent, the GitHub PAT into Secret Manager — re-run to
+> rotate the PAT), then `scripts/dataform-gcp-client.sh <slug>` once per client (Dataform repo
+> linked to this repo's `dataform/<slug>` branch + release & workflow configs; prints the repo
+> path the portal needs). The client dataform README (clients/example-client/dataform/README.md)
+> has the layer walkthrough, the PAT mint steps and the auth model. Start there, then use this
+> skill for the modelling decisions.
 
 ## One dataset per client
 
@@ -150,9 +154,10 @@ default.
 
 What the platform needs from your repo: a **workflowConfig** with a **releaseConfig** for it to
 compile from. Without one, every run fails at the Dataform step — that's the single most common
-setup mistake. Create both in the Dataform repository (GCP console): a **release config** on
-`main`, then a **workflow config** that references it with its schedule left off — `dataform/README.md`
-has the click-by-click. `/admin/pipeline` shows a client's scope, schedule, and last run.
+setup mistake, which is why `scripts/dataform-gcp-client.sh <slug>` creates both (release config
+on the `dataform/<slug>` branch with an hourly recompile, workflow config with its schedule left
+off). Only reach for the GCP console when the script's defaults don't fit. `/admin/pipeline`
+shows a client's scope, schedule, and last run.
 
 **A brand-new client with no Dataform repo yet is fine.** Orchestration runs the syncs and
 reports that there's nothing to model; add the repo when you're ready and it starts running.

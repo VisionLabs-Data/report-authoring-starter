@@ -22,6 +22,8 @@ portal.config.json          # portal URL + repo-slug → portal-client bindings
 scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
 scripts/dataform-sync.sh    # publishes clients/{slug}/dataform/ → the dataform/{slug} branch
+scripts/dataform-gcp-setup.sh   # once per agency: APIs, service agent, GitHub PAT → Secret Manager
+scripts/dataform-gcp-client.sh  # once per client: Dataform repo + release/workflow configs in GCP
 ```
 
 Each client's `dataform/` is a real ad semantic layer, ONE dataset per client
@@ -136,6 +138,11 @@ do ALL of these — creating the client alone is not enough; it must be wired in
    be set up in the portal admin (credentials can't be set from here, by design). A plain
    Looker Studio / URL-embed report needs no BigQuery and can be authored right away.
 6. Then plan + author as usual. `get_client_schema` only returns tables once step 5 is done.
+7. **If the client needs modelled data** (a dataform pipeline, not just raw tables): copy
+   `clients/example-client/dataform/` to the new client's folder, then follow the
+   **dataform-pipeline** skill — edit → commit → `npm run dataform:sync -- {slug}` →
+   `scripts/dataform-gcp-client.sh {slug}` (agency ran `scripts/dataform-gcp-setup.sh` once
+   before any of this). Optional; reports on raw/synced tables work without it.
 
 Existing clients created in the portal admin skip steps 1–2 — just add the binding (id from
 the portal) and the folder.
