@@ -106,9 +106,11 @@ The two ad platforms come in as separate raw streams and leave as one attributed
    this client's funnels.
 5. **Publish the branch.** Commit the folder on `main`, then `npm run dataform:sync -- <slug>` —
    this creates and pushes the `dataform/<slug>` branch GCP will read.
-6. **Connect it in GCP.** BigQuery → **Dataform** → Create repository → link **this** git repo,
-   with **default branch `dataform/<slug>`**. One Dataform repository per client, all pointing at
-   the same agency repo on different branches. (The GitHub token it asks for: see **Auth** below.)
+6. **Connect it in GCP:** `scripts/dataform-gcp-client.sh <slug>` — creates the Dataform
+   repository (git-linked to **this** repo at branch `dataform/<slug>`), release config and
+   workflow config in one go. One Dataform repository per client, all pointing at the same agency
+   repo on different branches. First time for the agency? Run `scripts/dataform-gcp-setup.sh`
+   before this — see **Auth** below.
 
 ## Auth — who is who
 
@@ -124,11 +126,10 @@ only the first is created per client; the other two are one-time, agency-project
    project silently isn't eligible.
 
 2. **Dataform reading GitHub.** GCP pulls the `dataform/<slug>` branch with a GitHub token, not a
-   Google identity: create a fine-grained PAT (read-only **Contents** on this repo), store it as
-   a **Secret Manager** secret in the agency project, reference that secret when linking each
-   client's Dataform repository, and grant the Dataform **service agent** access to read it
-   (`secretmanager.secretAccessor`). ONE token serves every client's repository — they all read
-   the same repo.
+   Google identity: a fine-grained PAT stored as a **Secret Manager** secret in the agency
+   project, referenced by each client's Dataform repository. ONE token serves every client's
+   repository — they all read the same repo. Setup is scripted; only minting the token is
+   clicks (see below).
 
 3. **Dataform executing SQL.** Workflow runs execute as the project's built-in Dataform service
    agent (`service-<project_number>@gcp-sa-dataform.iam.gserviceaccount.com`), which exists as
@@ -138,6 +139,36 @@ only the first is created per client; the other two are one-time, agency-project
    layout — that override exists for the cross-project case (repo in your project, raw data in
    the client's own project), and it drags in impersonation grants you don't otherwise need.
    With everything in one agency project, the default agent + one grant is the whole story.
+
+### Setting it up — one manual step, then two scripts
+
+**Mint the GitHub token** (the only part that is clicks — GitHub has no API for this):
+GitHub → your avatar → **Settings → Developer settings → Personal access tokens → Fine-grained
+tokens → Generate new token**. Resource owner: the org that owns this repo · Repository access:
+**Only select repositories** → this repo · Permissions: **Contents: Read-only** (Metadata comes
+along automatically) · Expiration: 1 year, and **calendar the rotation** — when it expires, every
+client's pipeline stops pulling at once, and the failure reads like a git error, not an expiry.
+Copy the token; it is shown once.
+
+```bash
+# once per agency — enables APIs, provisions the service agent, stores the PAT
+# (prompts for it, input hidden), grants secret access + the BigQuery execution roles.
+# Re-run with a fresh PAT to rotate: it adds a new secret version and the repos
+# reference "latest", so rotation needs no per-client touch.
+scripts/dataform-gcp-setup.sh <agency-gcp-project>
+
+# once per client — creates the Dataform repository (git-linked to this repo at
+# branch dataform/<slug>), the release config (hourly recompile), AND the workflow
+# config (no cron — the portal owns timing). Prints the repo path the portal needs.
+# Requires the branch: npm run dataform:sync -- <slug> first.
+scripts/dataform-gcp-client.sh <slug> [region]   # region = Dataform region, default us-central1
+```
+
+The per-client script exists mostly because of the next section — it creates the workflow config
+you would otherwise forget. Both scripts are safe to re-run (existing objects are left alone).
+Note the region argument is the **Dataform** region (a real region like `us-central1`), not the
+BigQuery dataset location (`US`) — different namespaces, and `defaultLocation` here is not valid
+there.
 
 ## The bit everyone misses: a **release config** AND a **workflow config**
 
