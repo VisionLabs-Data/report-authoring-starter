@@ -43,11 +43,11 @@ HEAD_SHA=$(git rev-parse --short HEAD)
 
 if $ALL; then
   # Discover from HEAD, not the filesystem — only committed folders can sync anyway.
-  while IFS= read -r path; do
-    SLUGS+=("$(basename "$(dirname "$path")")")
-  done < <(git ls-tree -d --name-only HEAD 'clients/*/' | while read -r c; do
-    git rev-parse -q --verify "HEAD:$c/dataform" >/dev/null 2>&1 && echo "$c/dataform"
-  done)
+  while IFS= read -r c; do
+    if git rev-parse -q --verify "HEAD:clients/$c/dataform" >/dev/null 2>&1; then
+      SLUGS+=("$c")
+    fi
+  done < <(git ls-tree --name-only "HEAD:clients")
 fi
 
 [ ${#SLUGS[@]} -gt 0 ] || die "no client slugs given (or --all found none). Usage: scripts/dataform-sync.sh <slug>… | --all"
