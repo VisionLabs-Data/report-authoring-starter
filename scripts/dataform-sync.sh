@@ -31,9 +31,13 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --all) ALL=true ;;
     -m) shift; MSG="${1:-}" ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown flag $1" ;;
-    *) SLUGS+=("$1") ;;
+    *)
+      # Accept what tab-completion produces: clients/acme-co/, acme-co/, even the
+      # full clients/acme-co/dataform path — normalize all of them to the bare slug.
+      s="${1%/}"; s="${s%/dataform}"; s="${s#clients/}"; s="${s%/}"
+      SLUGS+=("$s") ;;
   esac
   shift
 done
