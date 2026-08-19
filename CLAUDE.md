@@ -11,6 +11,7 @@ tables, and description — that context syncs with the report.
 ```
 clients/{slug}/
   client.config.json        # client name, GCP project, datasets, branding
+  dataform/                 # the client's data models (see below) — edited HERE on main
   reports/
     {id}.report.json        # metadata: title, description, queries (SQL), filters, portal
     {id}/                   # split-file source (freehand)
@@ -20,11 +21,16 @@ clients/{slug}/
 portal.config.json          # portal URL + repo-slug → portal-client bindings
 scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
-dataform/                   # copy-me TEMPLATE for a client's Dataform repo (data modelling): a
-                            #   real ad semantic layer, ONE dataset per client (raw_/staging_/main_
-                            #   prefixes) — Meta+Google staging → main_ads_daily_grain + main_daily_
-                            #   summary + creative + tracking. README + the dataform-pipeline skill.
+scripts/dataform-sync.sh    # publishes clients/{slug}/dataform/ → the dataform/{slug} branch
 ```
+
+Each client's `dataform/` is a real ad semantic layer, ONE dataset per client
+(raw_/staging_/main_ table prefixes) — Meta+Google staging → main_ads_daily_grain +
+main_daily_summary + creative + tracking. The example client's folder is the copy-me
+template for new clients. GCP Dataform can't read a subdirectory, so each client's GCP
+repository links to this repo pinned to a generated `dataform/{slug}` branch: edit on
+`main`, commit, then `npm run dataform:sync -- {slug}` (never edit that branch by hand).
+Details: the client dataform README + the **dataform-pipeline** skill.
 
 ## Where the data lives
 

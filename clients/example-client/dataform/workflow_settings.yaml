@@ -1,8 +1,12 @@
 # Dataform Core settings for ONE client's data pipeline.
 #
-# This `dataform/` folder is a copy-me TEMPLATE for a client's own Dataform repo — it is NOT run
-# from the reports repo. See dataform/README.md for how to stand it up in GCP. The modelling
-# conventions (the raw_/staging_/main_ layers) are explained in the `dataform-pipeline` skill.
+# Every client's Dataform lives in THIS repo at clients/<slug>/dataform/ — this folder is the
+# template you copy for a new client. You edit here on main; `npm run dataform:sync -- <slug>`
+# publishes the folder to the client's `dataform/<slug>` branch, which is what the client's GCP
+# Dataform repository is linked to (GCP requires this file at the repo ROOT, so each client gets
+# a generated branch instead of a separate repo). Never edit that branch directly. See
+# dataform/README.md for the GCP setup; the modelling conventions (the raw_/staging_/main_
+# layers) are explained in the `dataform-pipeline` skill.
 
 # Your agency's GCP project — the same project every client's dataset lives in.
 defaultProject: your-agency-gcp-project

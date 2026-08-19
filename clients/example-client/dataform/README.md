@@ -1,14 +1,31 @@
-# Dataform pipeline (template)
+# Dataform pipeline (per client, in this repo)
 
-A **ready-to-copy template for ONE client's Dataform repo** — the BigQuery data-modelling half of
-the pipeline, separate from the reports in `clients/`. Reports render HTML; this turns a client's
-raw ad data into the clean, pipeline-attributed tables those reports query. It ships a **real,
-runnable ad semantic layer** modelled on a live client — swap the sources for the ones this client
-syncs and it builds. The modelling conventions (layers, grain-in-the-description, rates-at-read-
-time) are in the **`dataform-pipeline`** skill — read it first.
+Each client's Dataform project lives at **`clients/<slug>/dataform/`** in this repo, next to their
+reports — this folder is the **template you copy** for a new client. Reports render HTML; this
+turns the client's raw ad data into the clean, pipeline-attributed tables those reports query. It
+ships a **real, runnable ad semantic layer** modelled on a live client — swap the sources for the
+ones this client syncs and it builds. The modelling conventions (layers, grain-in-the-description,
+rates-at-read-time) are in the **`dataform-pipeline`** skill — read it first.
+
+One wrinkle makes the layout possible: **GCP Dataform can only read a repo whose
+`workflow_settings.yaml` sits at the ROOT** — it cannot point at a subdirectory. So each client
+gets a generated **`dataform/<slug>` branch** holding just their folder's contents at the root,
+and their GCP Dataform repository links to this repo pinned to that branch. You never touch those
+branches by hand:
+
+```bash
+# edit clients/<slug>/dataform/ on main, commit, then:
+npm run dataform:sync -- <slug>     # or --all after a merge touching several clients
+```
+
+The script builds the branch commit **directly from the committed folder's git tree**
+(`git commit-tree`) — no checkout, no copying, nothing to drift: the branch cannot differ from
+the folder because it *is* the folder's tree object. Re-running is a no-op when nothing changed.
+It refuses to run with uncommitted changes under the folder (that would publish a stale snapshot),
+and editing the generated branch directly just gets overwritten on the next sync — fix on `main`.
 
 ```
-dataform/
+clients/<slug>/dataform/
   workflow_settings.yaml                  # project / client dataset / location / core version
   definitions/
     sources/raw_sources.js                # declare the Airbyte raw tables (Meta + Google)
@@ -75,8 +92,8 @@ The two ad platforms come in as separate raw streams and leave as one attributed
 
 ## Stand it up (once per client)
 
-1. **Make it the client's own repo.** Copy this `dataform/` folder to the ROOT of a new git repo so
-   `workflow_settings.yaml` sits at the repo root.
+1. **Copy the template.** Copy this folder to `clients/<slug>/dataform/` for the new client (the
+   example client ships with it in place).
 2. **Point it at the project + dataset.** In `workflow_settings.yaml` set `defaultProject` to your
    agency GCP project, `defaultDataset` to this client's `dataset_slug` (one dataset — create it if
    it doesn't exist), and `defaultLocation` to its region.
@@ -87,7 +104,11 @@ The two ad platforms come in as separate raw streams and leave as one attributed
    read. The examples target the Meta `facebook-marketing` and `google-ads` connectors.
 4. **Fill in the mapping.** Replace the example rows in `seeds/campaign_pipeline_mapping.sqlx` with
    this client's funnels.
-5. **Connect the repo in GCP.** BigQuery → **Dataform** → Create repository → link this git repo.
+5. **Publish the branch.** Commit the folder on `main`, then `npm run dataform:sync -- <slug>` —
+   this creates and pushes the `dataform/<slug>` branch GCP will read.
+6. **Connect it in GCP.** BigQuery → **Dataform** → Create repository → link **this** git repo,
+   with **default branch `dataform/<slug>`**. One Dataform repository per client, all pointing at
+   the same agency repo on different branches.
 
 ## The bit everyone misses: a **release config** AND a **workflow config**
 
@@ -97,8 +118,9 @@ config**. No workflow config → every orchestrated run fails at the Dataform st
 
 In the Dataform repository (GCP console → your repo):
 
-1. **Release configuration** → Create. Name it (e.g. `production`), branch `main`. Compiles the repo
-   into a `compilationResult`.
+1. **Release configuration** → Create. Name it (e.g. `production`), branch **`dataform/<slug>`**
+   (the generated branch — not `main`, which has the folder nested where GCP can't compile it).
+   Compiles the branch into a `compilationResult`.
 2. **Workflow configuration** → Create. Reference that release config, select tags/targets (empty =
    everything). **Leave the schedule off** — the portal owns timing and will clear this cron. Its
    presence is what the orchestrator looks for.
