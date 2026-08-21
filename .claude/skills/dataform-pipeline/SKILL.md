@@ -159,8 +159,27 @@ on the `dataform/<slug>` branch with an hourly recompile, workflow config with i
 off). Only reach for the GCP console when the script's defaults don't fit. `/admin/pipeline`
 shows a client's scope, schedule, and last run.
 
-**A brand-new client with no Dataform repo yet is fine.** Orchestration runs the syncs and
-reports that there's nothing to model; add the repo when you're ready and it starts running.
+### Register the repo with the portal
+
+Creating the GCP repository is not enough — the portal only transforms what it has been told
+about. Put the path `scripts/dataform-gcp-client.sh` printed into the client's
+`client.config.json`:
+
+```json
+{
+  "dataform_repository": "projects/your-agency-project/locations/us-central1/repositories/acme-co"
+}
+```
+
+then `npm run sync -- acme-co`. The portal checks it: the repository has to be in the same GCP
+project as the client's data (the project on the agency's BigQuery settings, or the client's own
+if it has one), and it will refuse a path in anyone else's project.
+
+**A brand-new client with no Dataform repo yet is fine** — orchestration runs the syncs and the
+run reports `Dataform: SKIPPED — no repository registered`. Note what that means: the run is
+still **green**, because the syncs really did succeed. A client whose repo you forgot to register
+looks exactly like a client that has no models by design, so check the Dataform line rather than
+the run status. Enabling the pipeline warns about it too.
 
 Older clients (pre-Aug 2026) use a dataset per layer instead — `<client>_raw`,
 `<client>_staging`, `<client>_main`. Same three layers, same rules about what goes in each.

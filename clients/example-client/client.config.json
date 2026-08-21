@@ -4,6 +4,7 @@
   "datasets": {
     "main": "example_client"
   },
+  "dataform_repository": "",
   "branding": {
     "company_name": "Example Client"
   }

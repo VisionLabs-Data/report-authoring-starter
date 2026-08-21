@@ -133,6 +133,9 @@ do ALL of these — creating the client alone is not enough; it must be wired in
    `branding.company_name`, your agency's `gcp_project_id`, and
    `"datasets": { "main": "<dataset_slug from step 1>" }` — one dataset per client, holding
    all three layers (see the **dataform-pipeline** skill). Add an empty `reports/` folder.
+   Leave `dataform_repository` out until the repo exists — the **dataform-pipeline** skill
+   covers creating it and registering the path, which is what makes the portal transform
+   anything (without it, runs sync and report `Dataform: SKIPPED`).
 5. **Tell the user to configure data in the portal admin** — `create_client` sets metadata
    only. Before any live-data report will work, the client's **BigQuery integration** must
    be set up in the portal admin (credentials can't be set from here, by design). A plain
