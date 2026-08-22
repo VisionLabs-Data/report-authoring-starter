@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build-reports.ts",
+    "build": "npm run check && tsx scripts/build-reports.ts",
     "sync": "tsx scripts/sync.ts",
     "pull": "tsx scripts/pull.ts",
-    "dataform:sync": "bash scripts/dataform-sync.sh"
+    "dataform:sync": "bash scripts/dataform-sync.sh",
+    "check": "tsx scripts/check-source-tables.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

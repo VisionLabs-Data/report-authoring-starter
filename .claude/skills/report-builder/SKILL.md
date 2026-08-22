@@ -91,7 +91,7 @@ A minimal report with 1 metric row, 1 chart, and 1 table. Copy this as a startin
   "description": "Monthly revenue and order volume overview",
   "data_mode": "live",
   "interactivity": "fixed",
-  "source_tables": ["your_dataset.orders_monthly"],
+  "source_tables": ["your-project.your_dataset.orders_monthly"],
   "queries": {
     "summary": {
       "sql": "SELECT month, revenue, orders FROM `your-project.your_dataset.orders_monthly` ORDER BY month",
@@ -198,8 +198,8 @@ Create `clients/{slug}/reports/{report-id}.report.json`:
   "data_mode": "live",
   "interactivity": "interactive",
   "source_tables": [
-    "your_dataset.ad_performance_daily",
-    "your_dataset.revenue_by_channel"
+    "your-project.your_dataset.ad_performance_daily",
+    "your-project.your_dataset.revenue_by_channel"
   ],
   "queries": {
     "query_name": {
@@ -230,7 +230,7 @@ Field reference:
 - **`id`**: must match the filename and becomes the report slug (kebab-case)
 - **`data_mode`**: `"live"` — queries execute against BigQuery on each request (with server-side caching per `cache_ttl`)
 - **`interactivity`**: `"fixed"` is a static display with no user controls; `"interactive"` gets filters/date pickers
-- **`source_tables`**: documents which tables this report depends on — keeps lineage traceable from pipeline → report
+- **`source_tables`**: the report's **BigQuery access grant** — not documentation. The report server matches every table your SQL touches against this list by `project.dataset` prefix, so **each entry must be fully qualified `project.dataset.table`**: a two-part `dataset.table` entry matches nothing and the report fails to render with "unauthorized table" even though the table exists and the SQL is correct. Write the same ref you wrote in the `FROM` clause — and note that a client's data may span more than one project (pipeline output in your project, connector datasets in theirs), so don't assume one project prefixes them all. Lineage from pipeline → report comes along for free.
 - **`queries`**: named `sql` queries. Each query is exposed to the report at `GET /api/query/{client}/{report-id}/{query_name}` on the report host — this is what the VL runtime fetches, and what any custom fetch (e.g., compare-period data) should call
 - **`filters`**: array of filter definitions (see "Date Range Filtering" below). Only rendered when `interactivity: "interactive"`
 - **`portal.sync`**: must be `true` or the sync skips the report entirely
