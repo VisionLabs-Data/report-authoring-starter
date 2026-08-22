@@ -186,6 +186,53 @@ Only **`sql` (BigQuery) queries** are supported — the portal's external author
 
 **Validate every query with the `validate_query` MCP tool** (a BigQuery dry-run — checks syntax, table authorization, and bytes scanned without executing) before wiring it into the report.
 
+### 3a. Governed Metrics — Check Before You Define a Number
+
+A **governed metric** is the portal's shared, versioned definition of one number:
+`metrics.query`, resolved by `get_metric_value`. It exists so that two people asking
+"what was revenue?" get the same answer. Report SQL does **not** resolve metrics at
+render time — the report still runs its own query — so the metric is the arbiter of
+what your number *should* say, not a thing you can substitute in.
+
+Before writing SQL for any headline number, via the MCP:
+
+1. `list_metrics` — does this client already define this number?
+2. If yes, `get_metric` and **match its definition**. Write SQL that agrees with it, and
+   note the metric name in a SQL comment so the next author knows what it must match.
+3. `validate_query` is a dry run (no rows), so you cannot compare values yourself.
+   Resolve `get_metric_value` for a recent whole period and note the governed value in
+   your summary so a human can check the rendered report against it.
+4. When there is no metric and the number matters — it goes in a scorecard, a client
+   asks about it monthly, it appears in more than one report — propose one with
+   `create_metric` rather than leaving the definition buried in report SQL. It starts
+   *proposed*; staff approve it.
+
+#### The name you alias is a contract
+
+Two reports that both `AS revenue` are claiming to show the same number, and readers
+will compare them. Before adding an aggregate, check what that name already means here:
+
+```bash
+npx tsx scripts/metric-drift-audit.ts --client {slug}
+```
+
+It lists every name this client computes more than one way across reports, with the
+expressions and their tables. Three outcomes, in order of preference:
+
+- **It should agree** → reuse the existing expression verbatim. This is the common case
+  and the whole point.
+- **It is genuinely a different number** → give it a different alias. `sms_clicks` and
+  `search_clicks`, never two kinds of `clicks`.
+- **Nobody knows which is right** → that is a governed metric waiting to happen. Propose
+  it, and make both reports match it.
+
+Why this is worth the one command: on a real client, "Revenue" meant three different
+things on three pages ($57,619 / $51,089 / $0) and ad spend read $15,435.66 against a
+governed $18,042.27 — an INNER JOIN had silently dropped unmapped campaigns, inflating
+ROAS by 17%. All three were found by eye, a week after shipping, by a client-facing
+person. Once a client has approved metrics, graduate to a CI gate that resolves
+`get_metric_value` for a settled month and fails the build when a report disagrees.
+
 ### 4. Create the Report JSON
 
 Create `clients/{slug}/reports/{report-id}.report.json`:

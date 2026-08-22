@@ -21,6 +21,7 @@ clients/{slug}/
 portal.config.json          # portal URL + repo-slug → portal-client bindings
 scripts/build-reports.ts    # assembles split files → {id}.report.html
 scripts/sync.ts             # pushes built reports to the portal
+scripts/metric-drift-audit.ts   # names that reports compute differently — run before adding an aggregate
 scripts/dataform-sync.sh    # publishes clients/{slug}/dataform/ → the dataform/{slug} branch
 scripts/dataform-gcp-setup.sh   # once per agency: APIs, service agent, GitHub PAT → Secret Manager
 scripts/dataform-gcp-client.sh  # once per client: Dataform repo + release/workflow configs in GCP
