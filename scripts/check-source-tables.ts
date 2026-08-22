@@ -43,9 +43,9 @@ for (const slug of await readdir("clients", { withFileTypes: true })) {
         checked++;
         for (const ref of (spec.source_tables ?? []) as string[]) {
             const t = String(ref).replace(/`/g, "").trim();
-            // A bare table name is a different mistake and equally unusable; both
-            // fail the same way at render, so both fail here.
-            if (t.split(".").length !== 3) bad.push(`${join(dir, f)} — "${t}"`);
+            // Only dotted entries are judged: this field is dual-purpose and holds PostHog
+            // DASHBOARD IDS (e.g. "1290925") for a posthog report, which are not table refs.
+            if (t.includes(".") && t.split(".").length !== 3) bad.push(`${join(dir, f)} — "${t}"`);
         }
     }
 }
@@ -65,5 +65,5 @@ if (checked === 0) {
     console.error("no reports found — the walk is broken, not the corpus");
     process.exit(1);
 }
-console.log(`ALL PASS — every source_tables entry in ${checked} reports is project.dataset.table`);
+console.log(`ALL PASS — every dotted source_tables entry in ${checked} reports is project.dataset.table`);
 process.exit(0);
