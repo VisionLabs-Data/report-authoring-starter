@@ -5,15 +5,15 @@
   "data_mode": "live",
   "interactivity": "interactive",
   "source_tables": [
-    "your-gcp-project.example_client_main.orders"
+    "your-gcp-project.example_client.main_orders"
   ],
   "queries": {
     "kpis": {
-      "sql": "SELECT COUNT(*) AS orders, ROUND(SUM(total), 2) AS revenue FROM `your-gcp-project.example_client_main.orders` WHERE DATE(order_date) BETWEEN DATE(@date_start) AND DATE(@date_end)",
+      "sql": "SELECT COUNT(*) AS orders, ROUND(SUM(total), 2) AS revenue FROM `your-gcp-project.example_client.main_orders` WHERE DATE(order_date) BETWEEN DATE(@date_start) AND DATE(@date_end)",
       "cache_ttl": "1h"
     },
     "monthly": {
-      "sql": "SELECT FORMAT_DATE('%Y-%m', DATE(order_date)) AS month, ROUND(SUM(total), 2) AS revenue FROM `your-gcp-project.example_client_main.orders` WHERE DATE(order_date) BETWEEN DATE(@date_start) AND DATE(@date_end) GROUP BY 1 ORDER BY 1",
+      "sql": "SELECT FORMAT_DATE('%Y-%m', DATE(order_date)) AS month, ROUND(SUM(total), 2) AS revenue FROM `your-gcp-project.example_client.main_orders` WHERE DATE(order_date) BETWEEN DATE(@date_start) AND DATE(@date_end) GROUP BY 1 ORDER BY 1",
       "cache_ttl": "1h"
     }
   },
