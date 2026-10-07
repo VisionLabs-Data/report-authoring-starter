@@ -7,7 +7,8 @@
  * the CLI wrapper and the in-memory composer (scripts/lib/report-composer.ts).
  *
  * Source directory structure (unchanged from the original build script):
- *   styles.css      → wrapped in <style>...</style>
+ *   styles.css      → wrapped in <style>...</style>, preceded by the client's
+ *                     ../_design-system.css when that file exists
  *   template.html   → inserted as-is (the HTML body)
  *   *.js            → concatenated (sorted by filename), wrapped in <script>...</script>
  */
@@ -44,6 +45,34 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Resolve a report's effective stylesheet: the client's shared design system
+ * (`clients/<slug>/reports/_design-system.css`) prepended to the report's own
+ * `styles.css`, when that shared file exists.
+ *
+ * ONE definition of the rule, deliberately. The build reads it here, and so does
+ * `readSourceDir` in report-composer.ts when it builds the source map the portal
+ * stores. When the build resolved it privately and the map didn't, the map could
+ * never reproduce the build — every split-file report of a client with a design
+ * system failed the `checkSourceFiles` gate and blocked that client's whole sync.
+ *
+ * Returns "" when there is neither a design system nor a styles.css, so callers
+ * can treat empty as "no CSS block".
+ */
+export async function resolveReportCss(
+  sourceDir: string,
+  ownCss: string | null
+): Promise<string> {
+  const designSystemPath = join(sourceDir, "..", "_design-system.css");
+  const designSystem = (await exists(designSystemPath))
+    ? await readFile(designSystemPath, "utf-8")
+    : null;
+
+  if (!designSystem) return ownCss ?? "";
+  if (!ownCss) return designSystem;
+  return `${designSystem}\n\n${ownCss}`;
 }
 
 /**
@@ -104,11 +133,19 @@ export async function buildReportFromDir(
   let sourceCount = 0;
   const parts: ReportParts = {};
 
-  // 1. CSS
-  if (files.includes("styles.css")) {
-    parts.css = await readFile(join(sourceDir, "styles.css"), "utf-8");
-    sourceCount++;
-  }
+  // 1. CSS. A client may keep a design system one level up, in
+  // clients/<slug>/reports/_design-system.css. When it is there it is prepended
+  // to every report's own stylesheet, so tokens and shared component rules live
+  // in one file instead of being copy-pasted into each report and drifting.
+  // Opt-in: clients without the file build exactly as before. The prepend rule
+  // itself lives in resolveReportCss, shared with the source map.
+  const ownCss = files.includes("styles.css")
+    ? await readFile(join(sourceDir, "styles.css"), "utf-8")
+    : null;
+  if (ownCss !== null) sourceCount++;
+
+  const css = await resolveReportCss(sourceDir, ownCss);
+  if (css) parts.css = css;
 
   // 2. HTML template
   if (files.includes("template.html")) {

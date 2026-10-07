@@ -141,6 +141,11 @@ async function main() {
       if (!f.endsWith(".report.json")) continue;
       const meta = JSON.parse(await readFile(join(reportsDir, f), "utf-8")) as ReportMeta;
       if (meta.portal?.sync !== true) { console.log(`[skip] ${slug}/${meta.id}: portal.sync is not true`); continue; }
+      // The starter's example queries point at a project that does not exist. Syncing them
+      // publishes a report that can never load to a real client's portal (it did, on a
+      // fresh agency's first `npm run sync`, 2026-10-07).
+      const placeholder = JSON.stringify([meta.source_tables ?? [], meta.queries ?? {}]).includes("your-gcp-project");
+      if (placeholder) { console.log(`[skip] ${slug}/${meta.id}: still points at your-gcp-project — replace the table refs with real ones from get_client_schema`); continue; }
       if (meta.id !== f.replace(/\.report\.json$/, "")) {
         console.error(`[error] ${slug}/${f}: "id" must equal the filename`);
         hadError = true;

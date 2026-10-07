@@ -7,27 +7,33 @@ every report you ship (its queries, tables, and description sync with it).
 
 ## Setup (once)
 
-1. **API key.** In your portal admin → API Keys, create an **agency-scoped** key with the
-   **Reports** capability (read + write). Add the **Clients** capability (write) too if you
-   want to create/manage clients from here (see below).
-2. **Configure.** `cp .env.example .env` and paste your key into `REPORTING_SUITE_API_KEY` —
-   that's the only value you need. The portal URL is already wired in `.mcp.json` and
-   `portal.config.json`.
-3. **Bind a client.** In `portal.config.json`, map each `clients/{slug}` folder to its portal
-   client id. You can get that id two ways: copy it from the portal admin, or — with the
-   Clients capability on your key — just ask Claude Code (*"create a client named Acme Co"*)
-   and it returns the new id via the `create_client` tool.
-4. **Install.** `npm install` (Node 22+).
-5. **Register the client.** `npm run sync -- <slug>` once, before asking for anything.
-   The first sync is what tells the portal your `gcp_project_id` and `datasets` — which
-   is what `get_client_schema` reads. Ask Claude for a report before this and it gets
-   *"No configuration found for client …"* on its very first tool call.
-   You do **not** need a report to exist first: a client with only a `client.config.json`
-   registers fine. (It didn't until 2026-08-08 — sync bailed before sending anything when
-   a client had no syncable report, so the one command that registers a client refused to
-   run until the client was already usable.)
+The fastest path is the portal's onboarding page (**Admin → Onboarding → Reports**). It
+connects the repo, creates the key, and writes `portal.config.json` for you. By hand:
 
-No DNS or hosting setup — your reports render on your agency's report host automatically.
+1. **Connect this repo to the portal.** Admin → Settings → GitHub → install the Portal app
+   on your GitHub account, then pick this repo. From then on, edits made in the Studio
+   (and reports built there) are committed straight into this repo by `reporting-portal[bot]`,
+   and CI publishes them. Without this, Studio edits wait in a queue for `npm run pull`.
+2. **API key.** Admin → API Keys → an **agency-scoped** key with **Reports** (read + write)
+   and **Clients** (write). One key, three jobs: the MCP connection (`.mcp.json`), the local
+   `npm run sync` / `npm run pull`, and CI. It is shown once.
+3. **Configure.** `cp .env.example .env` and paste the key into `REPORTING_SUITE_API_KEY`.
+   The portal URL is already wired in `.mcp.json` and `portal.config.json`. Never commit `.env`.
+4. **CI secret.** `gh secret set REPORTING_SUITE_API_KEY -R <owner>/<repo>` (or Settings →
+   Secrets → Actions on GitHub). The workflow is already in `.github/workflows/sync.yml`:
+   a PR touching `clients/**` syncs as drafts with preview URLs, a merge to `main` publishes.
+5. **Bind a client.** In `portal.config.json`, map each `clients/{slug}` folder to its portal
+   client id (the onboarding page prints this block filled in, or ask Claude Code to
+   *"create a client named Acme Co"* and use the id it returns).
+6. **Install and register.** `npm install` (Node 22+), then `npm run sync -- <slug>` once per
+   client. The first sync is what tells the portal your `gcp_project_id` and `datasets`,
+   which is what `get_client_schema` reads. A client with only a `client.config.json`
+   registers fine; the example report is `portal.sync: false` so nothing placeholder ships.
+7. **Data.** For data-driven reports, add the client's BigQuery service account in the portal
+   (Clients → the client → Integrations). `get_client_schema` and every query read through it;
+   until then it answers "BigQuery credentials are not configured for this client".
+
+No DNS or hosting setup: your reports render on `<agency>-reports.mythicdata.io` automatically.
 
 ## Managing clients from Claude Code
 
@@ -90,6 +96,10 @@ looks right. Publishing is explicit. Portal-side edits are never overwritten (th
 flags a conflict instead).
 
 ## Edits made in the portal (`npm run pull`)
+
+With the repo connected through the Portal app (setup step 1) you rarely need this: Studio
+edits are committed into this repo for you, merged three-way against `main`, and CI
+publishes them. `npm run pull` is the lane for a repo that is NOT connected.
 
 Reports synced from this repo stay editable in the portal's AI Studio — but the repo is
 the arbiter, so an edit there does **not** go live. The portal stages the edited source

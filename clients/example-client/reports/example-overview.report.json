@@ -28,7 +28,7 @@
     }
   ],
   "portal": {
-    "sync": true,
+    "sync": false,
     "category": "Analytics",
     "status": "published"
   }
